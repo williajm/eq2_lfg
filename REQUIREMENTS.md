@@ -66,8 +66,16 @@ that **Nobwick lvl 62 Conjuror** is a good match.
      (tolerance configurable).
 
 ### Character selection
-- Settings list every character from the roster with a checkbox; matching runs
-  only against the ticked ("available") subset.
+- Availability is configured as a three-level hierarchy so entire branches can
+  be excluded with a single click:
+  1. **Account** (e.g. `williajm`, `williajm2`, ... `williajm-eu`)
+  2. **Server** within the account (e.g. Wuoshi, Antonia Bayle, Thurgadin)
+  3. **Character** within the server
+- Each level has a checkbox; unticking an account or server disables everything
+  beneath it without touching the individual character settings (tri-state
+  display: checked / unchecked / partially checked).
+- Matching runs only against characters whose account, server, and own checkbox
+  are all enabled.
 - The currently played character is included — a match may be for the character
   the user is already on.
 
@@ -102,7 +110,7 @@ characters match one ad, all are listed on the match.
   - **Matches** view — current/recent matches in the format above, newest first.
   - **Traffic** view — all recognised LFG-relevant chat (group ads and
     individual LFG posts) with last-seen times.
-  - **Settings** — character checkboxes, alert style toggles, cooldown window,
+  - **Settings** — account/server/character availability tree, alert style toggles, cooldown window,
     level tolerance, EQ2 path, Census refresh interval, zone table editor.
 
 ## Non-functional
