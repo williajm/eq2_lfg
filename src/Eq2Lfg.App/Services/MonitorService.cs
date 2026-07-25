@@ -48,8 +48,8 @@ public sealed class MonitorService : IDisposable
     // Snapshot of the settings the live components were built from, so ApplySettings
     // only rebuilds (and loses state in) components whose configuration changed.
     private int appliedCooldownMinutes;
-    private string appliedServiceId = "";
-    private string appliedDirectory = "";
+    private string appliedServiceId;
+    private string appliedDirectory;
     private (int Players, int Archetypes, int Spread, int Window, bool Mentor) appliedOpportunity;
 
     public ZoneTable Zones { get; }
