@@ -63,6 +63,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="**/*.ico,**/*.png"
+          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="**/*.ico,**/*.png" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="src/Eq2Lfg.App/**" /d:sonar.qualitygate.wait=true
           dotnet build Eq2Lfg.sln --configuration Release
+          dotnet test tests/Eq2Lfg.Core.Tests --configuration Release --no-build --collect:"XPlat Code Coverage;Format=opencover"
           dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"

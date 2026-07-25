@@ -97,21 +97,9 @@ public sealed class ZoneTable
         byToken.TryGetValue(token.Trim(), out var entry) ? entry : null;
 
     /// <summary>Finds the first zone referenced anywhere in a message (multi-word names included).</summary>
-    public ZoneEntry? FindInText(string text)
-    {
-        foreach (var entry in Entries)
-        {
-            foreach (var token in entry.Abbreviations.Append(entry.Name))
-            {
-                if (ContainsToken(text, token))
-                {
-                    return entry;
-                }
-            }
-        }
-
-        return null;
-    }
+    public ZoneEntry? FindInText(string text) =>
+        Entries.FirstOrDefault(entry =>
+            entry.Abbreviations.Append(entry.Name).Any(token => ContainsToken(text, token)));
 
     private static bool ContainsToken(string text, string token)
     {

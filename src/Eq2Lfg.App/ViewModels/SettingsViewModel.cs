@@ -71,10 +71,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     private int censusRefreshMinutes;
 
     [ObservableProperty]
-    private string eq2Directory = "";
+    private string eq2Directory;
 
     [ObservableProperty]
-    private string censusServiceId = "";
+    private string censusServiceId;
 
     [ObservableProperty]
     private bool allowMentorDown;
@@ -157,6 +157,18 @@ public sealed partial class SettingsViewModel : ObservableObject
         monitor.ApplySettings();
     }
 
+    private static string CharacterLabel(GameCharacter character)
+    {
+        if (character.Class is null)
+        {
+            return character.Name;
+        }
+
+        return character.Level is null
+            ? $"{character.Name} — {character.Class}"
+            : $"{character.Name} — lvl {character.Level} {character.Class}";
+    }
+
     private void BuildAvailabilityTree()
     {
         AccountNodes.Clear();
@@ -177,14 +189,9 @@ public sealed partial class SettingsViewModel : ObservableObject
                 };
                 foreach (var character in serverGroup.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
                 {
-                    var label = character.Class is null
-                        ? character.Name
-                        : character.Level is null
-                            ? $"{character.Name} — {character.Class}"
-                            : $"{character.Name} — lvl {character.Level} {character.Class}";
                     var characterNode = new AvailabilityNode
                     {
-                        Label = label,
+                        Label = CharacterLabel(character),
                         Depth = 2,
                         Parent = serverNode,
                     };

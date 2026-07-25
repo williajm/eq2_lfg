@@ -130,11 +130,14 @@ public sealed class CharacterDataService(ICensusClient censusClient, string cach
             return false;
         }
 
-        var age = DateTimeOffset.UtcNow - entry.RefreshedUtc;
-        var limit = entry.Class is null
-            ? NotFoundMaxAge > maxAge ? NotFoundMaxAge : maxAge
-            : maxAge;
-        return age < limit;
+        var limit = maxAge;
+        if (entry.Class is null && NotFoundMaxAge > limit)
+        {
+            // Known-missing characters are re-checked less often.
+            limit = NotFoundMaxAge;
+        }
+
+        return DateTimeOffset.UtcNow - entry.RefreshedUtc < limit;
     }
 
     private static void ApplyFallback(GameCharacter character, CachedEntry? cached, string eq2Directory)

@@ -59,10 +59,15 @@ public static class Eq2InstallDetector
             foreach (var subKeyName in key.GetSubKeyNames())
             {
                 using var subKey = key.OpenSubKey(subKeyName);
-                var displayName = subKey?.GetValue("DisplayName") as string;
+                if (subKey is null)
+                {
+                    continue;
+                }
+
+                var displayName = subKey.GetValue("DisplayName") as string;
                 if (displayName?.Contains("EverQuest II", StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    yield return subKey?.GetValue("InstallLocation") as string;
+                    yield return subKey.GetValue("InstallLocation") as string;
                 }
             }
         }

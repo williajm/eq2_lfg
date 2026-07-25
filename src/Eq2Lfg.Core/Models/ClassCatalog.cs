@@ -38,22 +38,23 @@ public static class ClassCatalog
         new("Troubador", Role.Support, ["troub", "troubador", "troubadour", "trub"]),
     ];
 
-    private static readonly Dictionary<string, string> AliasToClass;
-    private static readonly Dictionary<string, Role> ClassToRole;
+    private static readonly Dictionary<string, string> AliasToClass = BuildAliasMap();
+    private static readonly Dictionary<string, Role> ClassToRole =
+        Classes.ToDictionary(c => c.Name, c => c.Role, StringComparer.OrdinalIgnoreCase);
 
-    static ClassCatalog()
+    private static Dictionary<string, string> BuildAliasMap()
     {
-        AliasToClass = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        ClassToRole = new Dictionary<string, Role>(StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in Classes)
         {
-            ClassToRole[c.Name] = c.Role;
-            AliasToClass[c.Name] = c.Name;
+            map[c.Name] = c.Name;
             foreach (var alias in c.Aliases)
             {
-                AliasToClass[alias] = c.Name;
+                map[alias] = c.Name;
             }
         }
+
+        return map;
     }
 
     public static IReadOnlyList<string> AllClassNames { get; } = Classes.Select(c => c.Name).ToList();

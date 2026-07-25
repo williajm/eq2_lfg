@@ -27,8 +27,16 @@ public sealed class GameCharacter
     public string Key => $"{Account}|{Server}|{Name}";
 
     /// <summary>Display form used in match rows, e.g. "Bramwick (lvl 59 Warden)".</summary>
-    public string Display =>
-        Class is null ? Name
-        : Level is null ? $"{Name} ({Class})"
-        : $"{Name} (lvl {Level} {Class})";
+    public string Display
+    {
+        get
+        {
+            if (Class is null)
+            {
+                return Name;
+            }
+
+            return Level is null ? $"{Name} ({Class})" : $"{Name} (lvl {Level} {Class})";
+        }
+    }
 }

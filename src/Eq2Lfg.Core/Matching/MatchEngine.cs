@@ -33,46 +33,51 @@ public sealed class MatchEngine(MatchOptions options)
             return [];
         }
 
-        var results = new List<MatchResult>();
-        foreach (var character in enabledCharacters)
+        return enabledCharacters
+            .Select(character => TryMatch(post, character))
+            .Where(result => result is not null)
+            .Select(result => result!)
+            .ToList();
+    }
+
+    private MatchResult? TryMatch(LfgPost post, GameCharacter character)
+    {
+        if (character.Class is null || character.Role is null)
         {
-            if (character.Class is null || character.Role is null)
-            {
-                continue;
-            }
-
-            var reasons = new List<string>();
-
-            var classWanted = post.Classes.Contains(character.Class, StringComparer.OrdinalIgnoreCase);
-            var roleWanted = post.WantedRoles.Contains(character.Role.Value);
-            // "LFM catacombs" names no role or class: anyone who fits the level is welcome.
-            var anyoneWanted = post.WantedRoles.Count == 0 && post.Classes.Count == 0;
-            if (classWanted)
-            {
-                reasons.Add($"{character.Class} wanted");
-            }
-            else if (roleWanted)
-            {
-                reasons.Add(character.Role.Value.ToString().ToLowerInvariant());
-            }
-            else if (anyoneWanted)
-            {
-                reasons.Add("any role welcome");
-            }
-            else
-            {
-                continue;
-            }
-
-            if (!LevelFits(post, character, reasons))
-            {
-                continue;
-            }
-
-            results.Add(new MatchResult { Character = character, Post = post, Reasons = reasons });
+            return null;
         }
 
-        return results;
+        var reasons = new List<string>();
+        if (!RoleOrClassWanted(post, character, reasons) || !LevelFits(post, character, reasons))
+        {
+            return null;
+        }
+
+        return new MatchResult { Character = character, Post = post, Reasons = reasons };
+    }
+
+    private static bool RoleOrClassWanted(LfgPost post, GameCharacter character, List<string> reasons)
+    {
+        if (post.Classes.Contains(character.Class!, StringComparer.OrdinalIgnoreCase))
+        {
+            reasons.Add($"{character.Class} wanted");
+            return true;
+        }
+
+        if (post.WantedRoles.Contains(character.Role!.Value))
+        {
+            reasons.Add(character.Role.Value.ToString().ToLowerInvariant());
+            return true;
+        }
+
+        // "LFM catacombs" names no role or class: anyone who fits the level is welcome.
+        if (post.WantedRoles.Count == 0 && post.Classes.Count == 0)
+        {
+            reasons.Add("any role welcome");
+            return true;
+        }
+
+        return false;
     }
 
     private bool LevelFits(LfgPost post, GameCharacter character, List<string> reasons)
@@ -85,49 +90,40 @@ public sealed class MatchEngine(MatchOptions options)
 
         if (post.StatedLevel is { } stated)
         {
-            if (level > stated + options.LevelTolerance)
-            {
-                if (!options.AllowMentorDown)
-                {
-                    return false;
-                }
-
-                reasons.Add($"can mentor down to {stated}");
-                return true;
-            }
-
-            if (level < stated - options.LevelTolerance)
-            {
-                return false;
-            }
-
-            reasons.Add($"level {stated}±{options.LevelTolerance}");
-            return true;
+            return FitsRange(level, stated, stated, $"level {stated}±{options.LevelTolerance}",
+                $"can mentor down to {stated}", reasons);
         }
 
         if (post is { ZoneMinLevel: { } min, ZoneMaxLevel: { } max })
         {
-            if (level > max + options.LevelTolerance)
-            {
-                if (!options.AllowMentorDown)
-                {
-                    return false;
-                }
+            return FitsRange(level, min, max, $"{post.ZoneName} {min}-{max}",
+                $"can mentor down to {post.ZoneName} {min}-{max}", reasons);
+        }
 
-                reasons.Add($"can mentor down to {post.ZoneName} {min}-{max}");
-                return true;
-            }
+        // Ad carries no level information at all.
+        return true;
+    }
 
-            if (level < min - options.LevelTolerance)
+    private bool FitsRange(
+        int level, int min, int max, string inRangeReason, string mentorReason, List<string> reasons)
+    {
+        if (level < min - options.LevelTolerance)
+        {
+            return false;
+        }
+
+        if (level > max + options.LevelTolerance)
+        {
+            if (!options.AllowMentorDown)
             {
                 return false;
             }
 
-            reasons.Add($"{post.ZoneName} {min}-{max}");
+            reasons.Add(mentorReason);
             return true;
         }
 
-        // Ad carries no level information at all.
+        reasons.Add(inRangeReason);
         return true;
     }
 }

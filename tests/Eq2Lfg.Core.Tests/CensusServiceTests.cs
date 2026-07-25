@@ -29,7 +29,11 @@ public class CensusServiceTests : IDisposable
 
     private string CachePath => Path.Combine(tempDir, "characters.json");
 
-    public void Dispose() => Directory.Delete(tempDir, recursive: true);
+    public void Dispose()
+    {
+        Directory.Delete(tempDir, recursive: true);
+        GC.SuppressFinalize(this);
+    }
 
     private static GameCharacter Char(string name, string server = "Wuoshi") =>
         new() { Account = "acct", Server = server, Name = name };

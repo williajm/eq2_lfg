@@ -9,12 +9,19 @@ public static class OpportunityMessage
     public static string Compose(GroupOpportunity opportunity)
     {
         var names = string.Join(", ", opportunity.Posts.Select(p => p.Advertiser));
-        var mine = opportunity.OwnCandidates.FirstOrDefault();
-        var bring = mine?.Class is null
-            ? ""
-            : mine.Level is null
-                ? $" I can bring my {mine.Class} ({mine.Name})."
-                : $" I can bring my {mine.Level} {mine.Class} ({mine.Name}).";
-        return $"{names} — saw you all LFG.{bring} Want to form a group?";
+        var mine = opportunity.OwnCandidates.Count > 0 ? opportunity.OwnCandidates[0] : null;
+        return $"{names} — saw you all LFG.{BringText(mine)} Want to form a group?";
+    }
+
+    private static string BringText(Models.GameCharacter? mine)
+    {
+        if (mine?.Class is null)
+        {
+            return "";
+        }
+
+        return mine.Level is null
+            ? $" I can bring my {mine.Class} ({mine.Name})."
+            : $" I can bring my {mine.Level} {mine.Class} ({mine.Name}).";
     }
 }

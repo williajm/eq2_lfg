@@ -7,6 +7,9 @@ namespace Eq2Lfg.App;
 
 public partial class App : Application
 {
+    // WPF pack URI scheme; this is a resource address, not a filesystem path.
+    private const string TrayIconUri = "pack://application:,,,/Assets/app.ico"; // NOSONAR
+
     private TaskbarIcon? trayIcon;
     private MainWindow? mainWindow;
     private MainViewModel? viewModel;
@@ -56,8 +59,7 @@ public partial class App : Application
         var icon = new TaskbarIcon
         {
             ToolTipText = "EQ2 LFG Monitor",
-            IconSource = new System.Windows.Media.Imaging.BitmapImage(
-                new Uri("pack://application:,,,/Assets/app.ico")),
+            IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri(TrayIconUri)),
             ContextMenu = menu,
         };
         icon.TrayLeftMouseUp += (_, _) => ShowMainWindow();

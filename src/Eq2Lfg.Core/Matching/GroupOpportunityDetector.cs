@@ -84,7 +84,7 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
 
         // Candidate level windows: one anchored at each stated level, plus the
         // "no level information" cluster. Posts without a stated level fit any window;
-        // multiboxer posts ("16 Dirge / 47 Conj / 70 Warden LFG") fit via any of their levels.
+        // multiboxer posts advertising several characters fit via any of their levels.
         var anchors = posts
             .SelectMany(p => p.StatedLevels)
             .Distinct()
@@ -94,83 +94,96 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
             .ToList();
 
         GroupOpportunity? best = null;
-        var bestScore = (People: 0, Archetypes: 0);
-
         foreach (var anchor in anchors)
         {
-            bool InWindow(int level) =>
-                anchor is not null && level >= anchor && level <= anchor + options.LevelSpread;
-
-            bool Fits(LfgPost p)
+            var candidate = EvaluateWindow(anchor, posts, ownCharacters);
+            if (candidate is not null && (best is null || IsBetter(candidate, best)))
             {
-                if (p.StatedLevels.Count == 0 || p.StatedLevels.Any(InWindow))
-                {
-                    return true;
-                }
-
-                // "70 fury LFG WILL MENTOR 40+" can play any level between the
-                // mentor floor and their actual level.
-                if (options.AllowMentorDown && p.WillMentor && anchor is { } a)
-                {
-                    var floor = p.MentorFloor ?? 1;
-                    return floor <= a + options.LevelSpread && p.StatedLevels.Max() >= a;
-                }
-
-                return false;
-            }
-
-            var members = posts.Where(Fits).ToList();
-            if (members.Count == 0)
-            {
-                continue;
-            }
-
-            var levels = members.SelectMany(p => p.StatedLevels.Where(InWindow)).ToList();
-            int? min = levels.Count > 0 ? levels.Min() : null;
-            int? max = levels.Count > 0 ? levels.Max() : null;
-
-            var own = ownCharacters
-                .Where(c => min is null
-                    || (c.Level is not null
-                        && c.Level >= min - options.LevelSpread
-                        && (c.Level <= max + options.LevelSpread || options.AllowMentorDown)))
-                .ToList();
-
-            var archetypes = new HashSet<Role>();
-            foreach (var role in members
-                         .SelectMany(p => p.Classes)
-                         .Select(cls => ClassCatalog.TryRoleOf(cls, out var r) ? (Role?)r : null)
-                         .Concat(own.Select(c => c.Role)))
-            {
-                if (role is not null)
-                {
-                    archetypes.Add(role.Value);
-                }
-            }
-
-            var people = members.Count + Math.Min(1, own.Count);
-            if (people < options.MinPlayers || archetypes.Count < options.MinArchetypes)
-            {
-                continue;
-            }
-
-            var score = (People: people, Archetypes: archetypes.Count);
-            if (best is null || score.People > bestScore.People
-                || (score.People == bestScore.People && score.Archetypes > bestScore.Archetypes))
-            {
-                best = new GroupOpportunity
-                {
-                    Posts = members,
-                    OwnCandidates = own,
-                    MinLevel = min,
-                    MaxLevel = max,
-                    Archetypes = archetypes,
-                };
-                bestScore = score;
+                best = candidate;
             }
         }
 
         return best;
+    }
+
+    private GroupOpportunity? EvaluateWindow(
+        int? anchor, List<LfgPost> posts, List<GameCharacter> ownCharacters)
+    {
+        var members = posts.Where(p => FitsWindow(p, anchor)).ToList();
+        if (members.Count == 0)
+        {
+            return null;
+        }
+
+        var levels = members
+            .SelectMany(p => p.StatedLevels.Where(l => InWindow(l, anchor)))
+            .ToList();
+        int? min = levels.Count > 0 ? levels.Min() : null;
+        int? max = levels.Count > 0 ? levels.Max() : null;
+
+        var own = ownCharacters.Where(c => CharacterFits(c, min, max)).ToList();
+        var archetypes = CollectArchetypes(members, own);
+
+        var people = members.Count + Math.Min(1, own.Count);
+        if (people < options.MinPlayers || archetypes.Count < options.MinArchetypes)
+        {
+            return null;
+        }
+
+        return new GroupOpportunity
+        {
+            Posts = members,
+            OwnCandidates = own,
+            MinLevel = min,
+            MaxLevel = max,
+            Archetypes = archetypes,
+        };
+    }
+
+    private bool InWindow(int level, int? anchor) =>
+        anchor is not null && level >= anchor && level <= anchor + options.LevelSpread;
+
+    private bool FitsWindow(LfgPost post, int? anchor)
+    {
+        if (post.StatedLevels.Count == 0 || post.StatedLevels.Any(l => InWindow(l, anchor)))
+        {
+            return true;
+        }
+
+        // A poster offering to mentor can play any level between their mentor floor
+        // and their actual level.
+        if (options.AllowMentorDown && post.WillMentor && anchor is { } a)
+        {
+            var floor = post.MentorFloor ?? 1;
+            return floor <= a + options.LevelSpread && post.StatedLevels.Max() >= a;
+        }
+
+        return false;
+    }
+
+    private bool CharacterFits(GameCharacter character, int? min, int? max) =>
+        min is null
+        || (character.Level is not null
+            && character.Level >= min - options.LevelSpread
+            && (character.Level <= max + options.LevelSpread || options.AllowMentorDown));
+
+    private static HashSet<Role> CollectArchetypes(
+        List<LfgPost> members, List<GameCharacter> own) =>
+        members
+            .SelectMany(p => p.Classes)
+            .Select(cls => ClassCatalog.TryRoleOf(cls, out var r) ? (Role?)r : null)
+            .Concat(own.Select(c => c.Role))
+            .Where(role => role is not null)
+            .Select(role => role!.Value)
+            .ToHashSet();
+
+    private static bool IsBetter(GroupOpportunity candidate, GroupOpportunity current)
+    {
+        var candidatePeople = candidate.Posts.Count + Math.Min(1, candidate.OwnCandidates.Count);
+        var currentPeople = current.Posts.Count + Math.Min(1, current.OwnCandidates.Count);
+        return candidatePeople > currentPeople
+            || (candidatePeople == currentPeople
+                && candidate.Archetypes.Count > current.Archetypes.Count);
     }
 
     public void Clear() => latestByAdvertiser.Clear();

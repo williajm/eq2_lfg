@@ -11,47 +11,54 @@ public static class RosterLoader
 {
     public static IReadOnlyList<GameCharacter> Load(string eq2Directory)
     {
-        var characters = new List<GameCharacter>();
         if (!Directory.Exists(eq2Directory))
         {
-            return characters;
+            return [];
         }
 
-        foreach (var file in Directory.EnumerateFiles(eq2Directory, "*_characters*.ini"))
+        return Directory.EnumerateFiles(eq2Directory, "*_characters*.ini")
+            .SelectMany(LoadFile)
+            .ToList();
+    }
+
+    private static IEnumerable<GameCharacter> LoadFile(string filePath)
+    {
+        var account = AccountFromFileName(Path.GetFileName(filePath));
+        return File.ReadLines(filePath)
+            .Select(line => ParseLine(account, line))
+            .Where(character => character is not null)
+            .Select(character => character!);
+    }
+
+    /// <summary>Parses one "CharacterN=Name,Server" line; null for anything else.</summary>
+    private static GameCharacter? ParseLine(string account, string line)
+    {
+        var trimmed = line.Trim();
+        if (!trimmed.StartsWith("Character", StringComparison.OrdinalIgnoreCase))
         {
-            var account = AccountFromFileName(Path.GetFileName(file));
-            foreach (var line in File.ReadLines(file))
-            {
-                var trimmed = line.Trim();
-                if (!trimmed.StartsWith("Character", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var eq = trimmed.IndexOf('=');
-                if (eq < 0)
-                {
-                    continue;
-                }
-
-                var parts = trimmed[(eq + 1)..].Split(',', 2);
-                if (parts.Length != 2)
-                {
-                    continue;
-                }
-
-                var name = parts[0].Trim();
-                var server = parts[1].Trim();
-                if (name.Length == 0 || server.Length == 0)
-                {
-                    continue;
-                }
-
-                characters.Add(new GameCharacter { Account = account, Server = server, Name = name });
-            }
+            return null;
         }
 
-        return characters;
+        var eq = trimmed.IndexOf('=');
+        if (eq < 0)
+        {
+            return null;
+        }
+
+        var parts = trimmed[(eq + 1)..].Split(',', 2);
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        var name = parts[0].Trim();
+        var server = parts[1].Trim();
+        if (name.Length == 0 || server.Length == 0)
+        {
+            return null;
+        }
+
+        return new GameCharacter { Account = account, Server = server, Name = name };
     }
 
     /// <summary>"williajm2_characters.ini" → "williajm2"; "williajm_characters-eu.ini" → "williajm-eu".</summary>

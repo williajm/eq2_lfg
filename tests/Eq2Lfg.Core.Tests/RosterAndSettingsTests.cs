@@ -9,7 +9,11 @@ public class RosterAndSettingsTests : IDisposable
     private readonly string tempDir =
         Directory.CreateTempSubdirectory("eq2lfg-tests").FullName;
 
-    public void Dispose() => Directory.Delete(tempDir, recursive: true);
+    public void Dispose()
+    {
+        Directory.Delete(tempDir, recursive: true);
+        GC.SuppressFinalize(this);
+    }
 
     [Fact]
     public void Loads_characters_from_all_account_files()
