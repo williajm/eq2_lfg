@@ -55,11 +55,24 @@ jobs:
         run: |
           $pair = "$($env:SONAR_TOKEN):"
           $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
+          $headers = @{ Authorization = "Basic $auth" }
+
+          $valid = Invoke-RestMethod -Uri "https://sonarcloud.io/api/authentication/validate" -Headers $headers
+          Write-Host "Token valid: $($valid.valid)"
           try {
-            Invoke-RestMethod -Method Post -Uri "https://sonarcloud.io/api/projects/create?organization=williajm&project=williajm_eq2_lfg&name=eq2_lfg" -Headers @{ Authorization = "Basic $auth" } | Out-Null
+            $orgs = Invoke-RestMethod -Uri "https://sonarcloud.io/api/organizations/search?member=true" -Headers $headers
+            Write-Host "Token is member of orgs: $(($orgs.organizations | ForEach-Object key) -join ', ')"
+          } catch {
+            Write-Host "Could not list orgs: $($_.Exception.Message)"
+          }
+
+          try {
+            Invoke-RestMethod -Method Post -Uri "https://sonarcloud.io/api/projects/create?organization=williajm&project=williajm_eq2_lfg&name=eq2_lfg" -Headers $headers | Out-Null
             Write-Host "Project created."
           } catch {
-            Write-Host "Project already exists or creation skipped: $($_.Exception.Message)"
+            $detail = ""
+            if ($_.ErrorDetails) { $detail = $_.ErrorDetails.Message }
+            Write-Host "Project create failed/skipped: $($_.Exception.Message) $detail"
           }
 
       - name: Build and analyze
