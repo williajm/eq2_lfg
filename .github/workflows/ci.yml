@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore Eq2Lfg.sln
+
+      - name: Check formatting
+        run: dotnet format Eq2Lfg.sln --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build Eq2Lfg.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test tests/Eq2Lfg.Core.Tests --configuration Release --no-build --verbosity normal

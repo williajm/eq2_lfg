@@ -1,0 +1,71 @@
+# SonarCloud analysis (project williajm_eq2_lfg in org williajm).
+# Requires the SONAR_TOKEN repository secret; the workflow skips itself when absent.
+name: SonarCloud
+
+# Free-plan note: SonarCloud only exposes analysis data for the main branch and
+# pull requests, so we analyze exactly those — dev gets its gate via the PR.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sonar:
+    runs-on: windows-latest
+    steps:
+      - name: Check for SONAR_TOKEN
+        id: check
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if ($env:SONAR_TOKEN) { "present=true" >> $env:GITHUB_OUTPUT }
+          else { "present=false" >> $env:GITHUB_OUTPUT; Write-Host "SONAR_TOKEN not set - skipping analysis" }
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.present == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Setup Java (for Sonar scanner)
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install scanner
+        if: steps.check.outputs.present == 'true'
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Disable automatic analysis (CI analysis is used instead)
+        if: steps.check.outputs.present == 'true'
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($env:SONAR_TOKEN):"))
+          try {
+            Invoke-RestMethod -Method Post -Uri "https://sonarcloud.io/api/autoscan/activation?enable=false&projectKey=williajm_eq2_lfg" -Headers @{ Authorization = "Basic $auth" } | Out-Null
+            Write-Host "Automatic analysis disabled."
+          } catch {
+            Write-Host "Autoscan toggle skipped: $($_.Exception.Message)"
+          }
+
+      - name: Build and analyze
+        if: steps.check.outputs.present == 'true'
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="**/*.ico,**/*.png" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="src/Eq2Lfg.App/**" /d:sonar.qualitygate.wait=true
+          dotnet build Eq2Lfg.sln --configuration Release
+          dotnet test tests/Eq2Lfg.Core.Tests --configuration Release --no-build --collect:"XPlat Code Coverage;Format=opencover"
+          dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
