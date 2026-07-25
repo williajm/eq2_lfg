@@ -1,0 +1,10 @@
+# Normalize text files to LF in the repo; working tree may be CRLF (Windows)
+# or LF (WSL) — with the text attribute set, both gits agree on cleanliness.
+* text=auto
+
+# Visual Studio solution files are traditionally CRLF everywhere.
+*.sln text eol=crlf
+
+# Binary assets.
+*.ico binary
+*.png binary
