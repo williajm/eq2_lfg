@@ -47,6 +47,21 @@ jobs:
         if: steps.check.outputs.present == 'true'
         run: dotnet tool install --global dotnet-sonarscanner
 
+      - name: Provision Sonar project (no-op if it exists)
+        if: steps.check.outputs.present == 'true'
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          $pair = "$($env:SONAR_TOKEN):"
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
+          try {
+            Invoke-RestMethod -Method Post -Uri "https://sonarcloud.io/api/projects/create?organization=williajm&project=williajm_eq2_lfg&name=eq2_lfg" -Headers @{ Authorization = "Basic $auth" } | Out-Null
+            Write-Host "Project created."
+          } catch {
+            Write-Host "Project already exists or creation skipped: $($_.Exception.Message)"
+          }
+
       - name: Build and analyze
         if: steps.check.outputs.present == 'true'
         shell: pwsh
