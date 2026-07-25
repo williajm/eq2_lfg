@@ -2,9 +2,11 @@
 # Requires the SONAR_TOKEN repository secret; the workflow skips itself when absent.
 name: SonarCloud
 
+# Free-plan note: SonarCloud only exposes analysis data for the main branch and
+# pull requests, so we analyze exactly those — dev gets its gate via the PR.
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
     branches: [main]
 
