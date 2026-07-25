@@ -29,10 +29,11 @@ public sealed class MonitorService : IDisposable
     private static readonly TimeSpan RelocateInterval = TimeSpan.FromSeconds(10);
 
     private readonly AppSettings settings;
-    private readonly CharacterDataService dataService;
     private readonly DispatcherTimer timer;
     private readonly HttpClient httpClient = new();
+    private readonly Dictionary<string, DateTimeOffset> opportunityAlerts = [];
 
+    private CharacterDataService dataService;
     private LfgMessageAnalyzer analyzer;
     private MatchEngine matchEngine;
     private CooldownTracker adCooldown;
@@ -40,11 +41,16 @@ public sealed class MonitorService : IDisposable
     private ActiveLog? activeLog;
     private DateTimeOffset lastRelocate = DateTimeOffset.MinValue;
     private DateTimeOffset lastCensusRefresh = DateTimeOffset.MinValue;
-    private string? lastOpportunitySignature;
-    private DateTimeOffset lastOpportunityAlert = DateTimeOffset.MinValue;
     private bool censusRefreshRunning;
     private int censusRefreshedCount;
     private DateTimeOffset? censusRefreshedAt;
+
+    // Snapshot of the settings the live components were built from, so ApplySettings
+    // only rebuilds (and loses state in) components whose configuration changed.
+    private int appliedCooldownMinutes;
+    private string appliedServiceId = "";
+    private string appliedDirectory = "";
+    private (int Players, int Archetypes, int Spread, int Window, bool Mentor) appliedOpportunity;
 
     public ZoneTable Zones { get; }
     public IReadOnlyList<GameCharacter> Roster { get; private set; } = [];
@@ -64,9 +70,11 @@ public sealed class MonitorService : IDisposable
         matchEngine = CreateMatchEngine();
         OpportunityDetector = CreateOpportunityDetector();
         adCooldown = new CooldownTracker(TimeSpan.FromMinutes(settings.CooldownMinutes));
-        dataService = new CharacterDataService(
-            new CensusClient(httpClient, NullIfEmpty(settings.CensusServiceId)),
-            AppSettings.DefaultCachePath);
+        dataService = CreateDataService();
+        appliedCooldownMinutes = settings.CooldownMinutes;
+        appliedServiceId = settings.CensusServiceId;
+        appliedDirectory = settings.Eq2Directory;
+        appliedOpportunity = OpportunitySnapshot();
         timer = new DispatcherTimer { Interval = PollInterval };
         timer.Tick += (_, _) => Poll();
     }
@@ -88,6 +96,25 @@ public sealed class MonitorService : IDisposable
             AllowMentorDown = settings.AllowMentorDown,
         });
 
+    private CharacterDataService CreateDataService()
+    {
+        var serviceId = NullIfEmpty(settings.CensusServiceId);
+        return new CharacterDataService(
+            new CensusClient(httpClient, serviceId), AppSettings.DefaultCachePath)
+        {
+            // Anonymous Census access allows roughly 10 requests/minute; a registered
+            // service ID lifts the limit and can be queried much faster.
+            RequestSpacing = serviceId is null
+                ? TimeSpan.FromSeconds(6.5)
+                : TimeSpan.FromSeconds(1),
+        };
+    }
+
+    private (int, int, int, int, bool) OpportunitySnapshot() =>
+        (settings.OpportunityMinPlayers, settings.OpportunityMinArchetypes,
+            settings.OpportunityLevelSpread, settings.OpportunityWindowMinutes,
+            settings.AllowMentorDown);
+
     private static string? NullIfEmpty(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;
 
@@ -99,12 +126,50 @@ public sealed class MonitorService : IDisposable
         timer.Start();
     }
 
-    /// <summary>Re-read tunables after the user changes settings.</summary>
+    /// <summary>
+    /// Re-read tunables after the user changes settings. Stateful components (cooldowns,
+    /// observed player posts, census client) are only rebuilt when their own configuration
+    /// actually changed, so unrelated edits don't clear history or re-enable alerts.
+    /// </summary>
     public void ApplySettings()
     {
         matchEngine = CreateMatchEngine();
-        adCooldown = new CooldownTracker(TimeSpan.FromMinutes(settings.CooldownMinutes));
-        OpportunityDetector = CreateOpportunityDetector();
+
+        if (settings.CooldownMinutes != appliedCooldownMinutes)
+        {
+            appliedCooldownMinutes = settings.CooldownMinutes;
+            adCooldown = new CooldownTracker(TimeSpan.FromMinutes(settings.CooldownMinutes));
+        }
+
+        if (OpportunitySnapshot() != appliedOpportunity)
+        {
+            appliedOpportunity = OpportunitySnapshot();
+            var replacement = CreateOpportunityDetector();
+            foreach (var post in OpportunityDetector.ActivePosts(DateTimeOffset.UtcNow))
+            {
+                replacement.Observe(post);
+            }
+
+            OpportunityDetector = replacement;
+        }
+
+        if (!string.Equals(settings.CensusServiceId, appliedServiceId, StringComparison.Ordinal))
+        {
+            appliedServiceId = settings.CensusServiceId;
+            dataService = CreateDataService();
+            lastCensusRefresh = DateTimeOffset.MinValue;
+        }
+
+        if (!string.Equals(settings.Eq2Directory, appliedDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            appliedDirectory = settings.Eq2Directory;
+            Roster = RosterLoader.Load(settings.Eq2Directory);
+            activeLog = null;
+            tailer = null;
+            lastRelocate = DateTimeOffset.MinValue;
+            lastCensusRefresh = DateTimeOffset.MinValue;
+            PublishStatus();
+        }
     }
 
     /// <summary>Re-create the analyzer after the zone table is edited.</summary>
@@ -225,16 +290,30 @@ public sealed class MonitorService : IDisposable
             return;
         }
 
+        // Per-cluster cooldown: each distinct set of advertisers has its own window,
+        // so alternating best-clusters can't bypass suppression.
         var now = DateTimeOffset.UtcNow;
-        var withinCooldown = now - lastOpportunityAlert < TimeSpan.FromMinutes(settings.CooldownMinutes);
-        if (opportunity.Signature == lastOpportunitySignature && withinCooldown)
+        var cooldown = TimeSpan.FromMinutes(settings.CooldownMinutes);
+        if (opportunityAlerts.TryGetValue(opportunity.Signature, out var lastAlert)
+            && now - lastAlert < cooldown)
         {
             return;
         }
 
-        lastOpportunitySignature = opportunity.Signature;
-        lastOpportunityAlert = now;
+        opportunityAlerts[opportunity.Signature] = now;
+        PruneOpportunityAlerts(now, cooldown);
         OpportunityFound?.Invoke(opportunity);
+    }
+
+    private void PruneOpportunityAlerts(DateTimeOffset now, TimeSpan cooldown)
+    {
+        foreach (var expired in opportunityAlerts
+                     .Where(kv => now - kv.Value > cooldown)
+                     .Select(kv => kv.Key)
+                     .ToList())
+        {
+            opportunityAlerts.Remove(expired);
+        }
     }
 
     private GameCharacter? ActiveCharacter() =>

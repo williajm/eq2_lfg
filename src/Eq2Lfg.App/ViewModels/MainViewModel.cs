@@ -82,13 +82,15 @@ public sealed partial class MainViewModel : ObservableObject
                 m.Advertiser.Equals(post.Advertiser, StringComparison.OrdinalIgnoreCase));
             if (existing is not null)
             {
-                existing.RefreshAge();
+                // Cooldown-suppressed repeat: the ad is still active, refresh last-seen.
+                existing.Touch(post.Message.Timestamp);
                 return;
             }
         }
 
         foreach (var row in MatchRow.From(post, matches))
         {
+            row.IsNew = settings.InAppAlerts;
             Matches.Insert(0, row);
         }
 
@@ -102,7 +104,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void OnOpportunity(GroupOpportunity opportunity)
     {
-        Opportunities.Insert(0, OpportunityRow.From(opportunity));
+        var row = OpportunityRow.From(opportunity);
+        row.IsNew = settings.InAppAlerts;
+        Opportunities.Insert(0, row);
         while (Opportunities.Count > 5)
         {
             Opportunities.RemoveAt(Opportunities.Count - 1);

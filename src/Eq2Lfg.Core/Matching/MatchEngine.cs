@@ -88,10 +88,16 @@ public sealed class MatchEngine(MatchOptions options)
             return true;
         }
 
-        if (post.StatedLevel is { } stated)
+        if (post.StatedLevels.Count > 0)
         {
-            return FitsRange(level, stated, stated, $"level {stated}±{options.LevelTolerance}",
-                $"can mentor down to {stated}", reasons);
+            // "need healer 40-50" states a range; a single "for 55 grp" collapses to one value.
+            var statedMin = post.StatedLevels.Min();
+            var statedMax = post.StatedLevels.Max();
+            var label = statedMin == statedMax
+                ? $"level {statedMin}±{options.LevelTolerance}"
+                : $"level {statedMin}-{statedMax}";
+            return FitsRange(
+                level, statedMin, statedMax, label, $"can mentor down to {statedMax}", reasons);
         }
 
         if (post is { ZoneMinLevel: { } min, ZoneMaxLevel: { } max })

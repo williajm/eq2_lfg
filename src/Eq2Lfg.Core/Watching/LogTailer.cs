@@ -5,7 +5,9 @@ namespace Eq2Lfg.Core.Watching;
 /// <summary>
 /// Polling tail of a live log file. Opens with permissive sharing so EQ2 keeps writing,
 /// survives the file being truncated or recreated, and starts at the current end so old
-/// history isn't replayed.
+/// history isn't replayed. Only complete (newline-terminated) lines are consumed: a line
+/// split across two writes stays in the file until its terminator arrives, so no ad is
+/// ever delivered as unusable fragments.
 /// </summary>
 public sealed class LogTailer(string filePath)
 {
@@ -16,8 +18,6 @@ public sealed class LogTailer(string filePath)
     /// <summary>Reads any complete new lines appended since the last call.</summary>
     public IReadOnlyList<string> ReadNewLines()
     {
-        var lines = new List<string>();
-
         FileStream stream;
         try
         {
@@ -27,11 +27,11 @@ public sealed class LogTailer(string filePath)
         }
         catch (IOException)
         {
-            return lines;
+            return [];
         }
         catch (UnauthorizedAccessException)
         {
-            return lines;
+            return [];
         }
 
         using (stream)
@@ -40,19 +40,45 @@ public sealed class LogTailer(string filePath)
             {
                 // First read, or the file was truncated/rotated: start from the end.
                 position = stream.Length;
-                return lines;
+                return [];
+            }
+
+            var available = stream.Length - position;
+            if (available == 0)
+            {
+                return [];
             }
 
             stream.Seek(position, SeekOrigin.Begin);
-            using var reader = new StreamReader(stream, Encoding.UTF8);
-            while (reader.ReadLine() is { } line)
+            var buffer = new byte[available];
+            var read = 0;
+            while (read < buffer.Length)
             {
-                lines.Add(line);
+                var chunk = stream.Read(buffer, read, buffer.Length - read);
+                if (chunk == 0)
+                {
+                    break;
+                }
+
+                read += chunk;
             }
 
-            position = stream.Length;
-        }
+            // Consume only up to the last newline; a trailing partial line is left
+            // in place for the next poll. Splitting on the byte value of '\n' is
+            // safe in UTF-8 (it never appears inside a multi-byte sequence).
+            var lastNewline = Array.LastIndexOf(buffer, (byte)'\n', read - 1);
+            if (lastNewline < 0)
+            {
+                return [];
+            }
 
-        return lines;
+            position += lastNewline + 1;
+            var text = Encoding.UTF8.GetString(buffer, 0, lastNewline + 1);
+            return text
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.TrimEnd('\r'))
+                .Where(line => line.Length > 0)
+                .ToList();
+        }
     }
 }

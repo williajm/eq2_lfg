@@ -47,6 +47,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         allowMentorDown = settings.AllowMentorDown;
         opportunityMinPlayers = settings.OpportunityMinPlayers;
         opportunityLevelSpread = settings.OpportunityLevelSpread;
+        opportunityMinArchetypes = settings.OpportunityMinArchetypes;
+        opportunityWindowMinutes = settings.OpportunityWindowMinutes;
 
         BuildAvailabilityTree();
         BuildZoneRows();
@@ -106,6 +108,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnOpportunityLevelSpreadChanged(int value)
     {
         settings.OpportunityLevelSpread = Math.Clamp(value, 0, 30);
+        Persist();
+    }
+
+    [ObservableProperty]
+    private int opportunityMinArchetypes;
+
+    [ObservableProperty]
+    private int opportunityWindowMinutes;
+
+    partial void OnOpportunityMinArchetypesChanged(int value)
+    {
+        settings.OpportunityMinArchetypes = Math.Clamp(value, 1, 4);
+        Persist();
+    }
+
+    partial void OnOpportunityWindowMinutesChanged(int value)
+    {
+        settings.OpportunityWindowMinutes = Math.Clamp(value, 5, 240);
         Persist();
     }
 
@@ -241,6 +261,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         Persist();
+        // Rebuild so children show their stored preferences under the new parent state.
+        BuildAvailabilityTree();
     }
 
     private void SetAccountEnabled(string account, bool enabled)
@@ -255,6 +277,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         Persist();
+        BuildAvailabilityTree();
     }
 
     private void BuildZoneRows()

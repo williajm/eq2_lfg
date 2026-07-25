@@ -31,8 +31,14 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
 
     // Guild recruitment: "<Lucid Dreams> Seeking sk/monk ... Full Time Position Raiders",
     // "Velocity is lookin for Dirge/Healers ... for raiding ... accept all casuals".
-    [GeneratedRegex(@"^\s*<[^>]+>|\b(?:guild|recruit\w*|raiders|raiding|casuals?|full\s*time|apply|discord)\b", RegexOptions.IgnoreCase)]
+    // Deliberately narrow — a mere mention of "guild" must not disqualify a genuine
+    // group ad like "guild group needs healer for CMM".
+    [GeneratedRegex(@"^\s*<[^>]+>|\b(?:recruit\w*|raiders|raiding|casuals?|full\s*time|apply)\b", RegexOptions.IgnoreCase)]
     private static partial Regex RecruitmentRegex();
+
+    // "have tank", "already got healer": roles/classes the group HAS, not ones it wants.
+    [GeneratedRegex(@"\b(?:already\s+)?(?:have|has|got|found)\b[^,;.!|]*", RegexOptions.IgnoreCase)]
+    private static partial Regex HaveClauseRegex();
 
     // "WILL MENTOR 40+" / "can mentor" / "mentor down"
     [GeneratedRegex(@"\bmentor\w*(?:\s+(?:down\s+)?(?:to\s+)?(\d{1,3})\s*\+?)?", RegexOptions.IgnoreCase)]
@@ -70,8 +76,12 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             return new LfgPost { Kind = PostKind.Recruitment, Message = message };
         }
 
-        var roles = ExtractRoles(text);
-        var classes = ExtractClasses(text);
+        // Roles/classes after "have"/"got" are what the group already has — drop
+        // those clauses before working out what is wanted. Zone lookup still uses
+        // the full text ("have tank for CMM" names the zone either way).
+        var wantedText = HaveClauseRegex().Replace(text, " ");
+        var roles = ExtractRoles(wantedText);
+        var classes = ExtractClasses(wantedText);
         var zone = zoneTable.FindInText(text);
         var mentorMatch = MentorRegex().Match(text);
         var mentorFloor = mentorMatch.Success && mentorMatch.Groups[1].Success

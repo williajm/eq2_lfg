@@ -7,7 +7,14 @@ namespace Eq2Lfg.App.ViewModels;
 /// <summary>Base for list rows that show a live "2 min ago" age.</summary>
 public abstract partial class TimedRow : ObservableObject
 {
-    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Marks the row as freshly re-seen (repeat ad within cooldown).</summary>
+    public void Touch(DateTimeOffset seenAt)
+    {
+        Timestamp = seenAt;
+        RefreshAge();
+    }
 
     public string AgeText =>
         (DateTimeOffset.UtcNow - Timestamp) switch
@@ -55,7 +62,6 @@ public sealed class MatchRow : TimedRow
                 ReasonsText = string.Join(", ", first.Reasons),
                 Channel = post.Message.Channel,
                 AlsoMatchesText = also,
-                IsNew = true,
             },
         ];
     }
@@ -148,7 +154,6 @@ public sealed partial class OpportunityRow : TimedRow
                 ? "You could bring: " + string.Join(", ", opportunity.OwnCandidates.Select(c => c.Display))
                 : "",
             SuggestedMessage = OpportunityMessage.Compose(opportunity),
-            IsNew = true,
         };
     }
 }

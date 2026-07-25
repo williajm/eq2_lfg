@@ -162,11 +162,32 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
         return false;
     }
 
-    private bool CharacterFits(GameCharacter character, int? min, int? max) =>
-        min is null
-        || (character.Level is not null
-            && character.Level >= min - options.LevelSpread
-            && (character.Level <= max + options.LevelSpread || options.AllowMentorDown));
+    private bool CharacterFits(GameCharacter character, int? min, int? max)
+    {
+        if (min is null)
+        {
+            return true;
+        }
+
+        if (character.Level is not { } level)
+        {
+            return false;
+        }
+
+        // The combined span including the character must stay within the configured
+        // spread — a character below the cluster cannot mentor upward.
+        if (level < min)
+        {
+            return level >= max - options.LevelSpread;
+        }
+
+        if (level > max)
+        {
+            return options.AllowMentorDown || level <= min + options.LevelSpread;
+        }
+
+        return true;
+    }
 
     private static HashSet<Role> CollectArchetypes(
         List<LfgPost> members, List<GameCharacter> own) =>

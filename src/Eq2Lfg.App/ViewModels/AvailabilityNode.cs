@@ -53,13 +53,13 @@ public sealed partial class AvailabilityNode : ObservableObject
 
     private void ApplyFromParent(bool state)
     {
+        // Display-only: a parent toggle records just the parent-level exception,
+        // never the children's stored preferences (so re-enabling restores them).
         SetSilently(state);
         foreach (var child in Children)
         {
             child.ApplyFromParent(state);
         }
-
-        StateChanged?.Invoke(this, state);
     }
 
     private void RecomputeFromChildren()

@@ -32,6 +32,19 @@
         <Setter Property="Margin" Value="0,0,0,8" />
       </Style>
 
+      <!--  Card that glows while its row is new (in-app alert highlight).  -->
+      <Style
+        x:Key="AlertCard"
+        BasedOn="{StaticResource Card}"
+        TargetType="Border">
+        <Style.Triggers>
+          <DataTrigger Binding="{Binding IsNew}" Value="True">
+            <Setter Property="BorderBrush" Value="#887BD88F" />
+            <Setter Property="Background" Value="#1F7BD88F" />
+          </DataTrigger>
+        </Style.Triggers>
+      </Style>
+
       <Style x:Key="Chip" TargetType="Border">
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Padding" Value="8,2" />

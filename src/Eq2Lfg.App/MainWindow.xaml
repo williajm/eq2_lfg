@@ -61,7 +61,7 @@
           <ItemsControl ItemsSource="{Binding Opportunities}">
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type vm:OpportunityRow}">
-                <Border Style="{StaticResource Card}" BorderBrush="#66FFB74D">
+                <Border Style="{StaticResource AlertCard}">
                   <StackPanel>
                     <Grid>
                       <TextBlock
@@ -109,7 +109,7 @@
           <ItemsControl ItemsSource="{Binding Matches}">
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type vm:MatchRow}">
-                <Border Style="{StaticResource Card}">
+                <Border Style="{StaticResource AlertCard}">
                   <Grid>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto" />
@@ -270,6 +270,8 @@
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <TextBlock
               Grid.Row="0"
@@ -326,6 +328,28 @@
               Grid.Column="1"
               Margin="0,0,0,6"
               Text="{Binding OpportunityLevelSpread, UpdateSourceTrigger=LostFocus}" />
+            <TextBlock
+              Grid.Row="5"
+              Grid.Column="0"
+              Margin="0,0,12,6"
+              VerticalAlignment="Center"
+              Text="Group opportunity: minimum archetypes" />
+            <TextBox
+              Grid.Row="5"
+              Grid.Column="1"
+              Margin="0,0,0,6"
+              Text="{Binding OpportunityMinArchetypes, UpdateSourceTrigger=LostFocus}" />
+            <TextBlock
+              Grid.Row="6"
+              Grid.Column="0"
+              Margin="0,0,12,6"
+              VerticalAlignment="Center"
+              Text="Group opportunity: post window (minutes)" />
+            <TextBox
+              Grid.Row="6"
+              Grid.Column="1"
+              Margin="0,0,0,6"
+              Text="{Binding OpportunityWindowMinutes, UpdateSourceTrigger=LostFocus}" />
           </Grid>
 
           <TextBlock Style="{StaticResource SectionHeader}" Text="EQ2 directory" />
