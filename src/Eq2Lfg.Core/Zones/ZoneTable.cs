@@ -50,28 +50,13 @@ public sealed class ZoneTable
             {
                 var seeds = SeedEntries();
                 var seedByName = seeds.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
-                var changed = false;
 
                 // Seed abbreviations added in newer app versions are appended to the
                 // user's entry; their own aliases and level edits are untouched.
-                var merged = entries.Select(entry =>
-                {
-                    if (!seedByName.TryGetValue(entry.Name, out var seed))
-                    {
-                        return entry;
-                    }
-
-                    var missing = seed.Abbreviations
-                        .Where(a => !entry.Abbreviations.Contains(a, StringComparer.OrdinalIgnoreCase))
-                        .ToList();
-                    if (missing.Count == 0)
-                    {
-                        return entry;
-                    }
-
-                    changed = true;
-                    return entry with { Abbreviations = [.. entry.Abbreviations, .. missing] };
-                }).ToList();
+                var merged = entries
+                    .Select(entry => MergeSeedAbbreviations(entry, seedByName))
+                    .ToList();
+                var changed = merged.Zip(entries).Any(p => !ReferenceEquals(p.First, p.Second));
 
                 var known = entries.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var additions = seeds.Where(s => !known.Contains(s.Name)).ToList();
@@ -90,6 +75,23 @@ public sealed class ZoneTable
         }
 
         return CreateSeeded();
+    }
+
+    /// <summary>Returns the same instance when the seed adds nothing new.</summary>
+    private static ZoneEntry MergeSeedAbbreviations(
+        ZoneEntry entry, Dictionary<string, ZoneEntry> seedByName)
+    {
+        if (!seedByName.TryGetValue(entry.Name, out var seed))
+        {
+            return entry;
+        }
+
+        var missing = seed.Abbreviations
+            .Where(a => !entry.Abbreviations.Contains(a, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+        return missing.Count == 0
+            ? entry
+            : entry with { Abbreviations = [.. entry.Abbreviations, .. missing] };
     }
 
     public void Save(string filePath)
