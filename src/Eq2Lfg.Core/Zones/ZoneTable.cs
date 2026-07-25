@@ -48,10 +48,20 @@ public sealed class ZoneTable
             var entries = JsonSerializer.Deserialize<List<ZoneEntry>>(File.ReadAllText(filePath));
             if (entries is { Count: > 0 })
             {
+                var seeds = SeedEntries();
+                var seedByName = seeds.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+
+                // Seed abbreviations added in newer app versions are appended to the
+                // user's entry; their own aliases and level edits are untouched.
+                var merged = entries
+                    .Select(entry => MergeSeedAbbreviations(entry, seedByName))
+                    .ToList();
+                var changed = merged.Zip(entries).Any(p => !ReferenceEquals(p.First, p.Second));
+
                 var known = entries.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var additions = SeedEntries().Where(s => !known.Contains(s.Name)).ToList();
-                var table = new ZoneTable(entries.Concat(additions));
-                if (additions.Count > 0)
+                var additions = seeds.Where(s => !known.Contains(s.Name)).ToList();
+                var table = new ZoneTable(merged.Concat(additions));
+                if (changed || additions.Count > 0)
                 {
                     table.Save(filePath);
                 }
@@ -65,6 +75,23 @@ public sealed class ZoneTable
         }
 
         return CreateSeeded();
+    }
+
+    /// <summary>Returns the same instance when the seed adds nothing new.</summary>
+    private static ZoneEntry MergeSeedAbbreviations(
+        ZoneEntry entry, Dictionary<string, ZoneEntry> seedByName)
+    {
+        if (!seedByName.TryGetValue(entry.Name, out var seed))
+        {
+            return entry;
+        }
+
+        var missing = seed.Abbreviations
+            .Where(a => !entry.Abbreviations.Contains(a, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+        return missing.Count == 0
+            ? entry
+            : entry with { Abbreviations = [.. entry.Abbreviations, .. missing] };
     }
 
     public void Save(string filePath)
@@ -106,9 +133,9 @@ public sealed class ZoneTable
         var index = 0;
         while ((index = text.IndexOf(token, index, StringComparison.OrdinalIgnoreCase)) >= 0)
         {
-            var beforeOk = index == 0 || !char.IsLetterOrDigit(text[index - 1]);
+            var beforeOk = index == 0 || !IsWordChar(text[index - 1]);
             var end = index + token.Length;
-            var afterOk = end >= text.Length || !char.IsLetterOrDigit(text[end]);
+            var afterOk = end >= text.Length || !IsWordChar(text[end]);
             if (beforeOk && afterOk)
             {
                 return true;
@@ -119,6 +146,9 @@ public sealed class ZoneTable
 
         return false;
     }
+
+    // Apostrophes are word-internal so "RE" doesn't match inside "We're".
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '\'';
 
     private static List<ZoneEntry> SeedEntries() =>
     [
@@ -140,12 +170,17 @@ public sealed class ZoneTable
         new() { Name = "Den of the Devourer", MinLevel = 65, MaxLevel = 70, Abbreviations = ["DoD", "Den"] },
         new() { Name = "Palace of the Awakened", MinLevel = 65, MaxLevel = 70, Abbreviations = ["PoA", "Palace"] },
         new() { Name = "Halls of Fate", MinLevel = 65, MaxLevel = 70, Abbreviations = ["HoF"] },
-        new() { Name = "Mistmoore Catacombs", MinLevel = 55, MaxLevel = 65, Abbreviations = ["MMC", "Catacombs"] },
+        new() { Name = "Mistmoore Catacombs", MinLevel = 55, MaxLevel = 65, Abbreviations = ["MMC", "Catacombs", "Cata"] },
         new() { Name = "Castle Mistmoore", MinLevel = 60, MaxLevel = 70, Abbreviations = ["CMM", "Mistmoore", "Mistmoor"] },
         new() { Name = "The Estate of Unrest", MinLevel = 65, MaxLevel = 70, Abbreviations = ["Unrest"] },
         new() { Name = "Shard of Fear", MinLevel = 65, MaxLevel = 70, Abbreviations = ["SoF"] },
-        new() { Name = "Crypt of Valdoon", MinLevel = 65, MaxLevel = 70, Abbreviations = ["Valdoon"] },
+        new() { Name = "Crypt of Valdoon", MinLevel = 65, MaxLevel = 70, Abbreviations = ["Valdoon", "CoV"] },
         new() { Name = "Klak'Anon", MinLevel = 60, MaxLevel = 70, Abbreviations = ["Klak"] },
         new() { Name = "Obelisk of Blight", MinLevel = 60, MaxLevel = 70, Abbreviations = ["OoB", "Blight"] },
+        new() { Name = "Wailing Caves", MinLevel = 10, MaxLevel = 20, Abbreviations = ["WC"] },
+        new() { Name = "Pillars of Flame", MinLevel = 50, MaxLevel = 60, Abbreviations = ["PoF"] },
+        // "Mayong" is the raid's boss (Mayong Mistmoore), used as shorthand for the zone.
+        new() { Name = "Mistmoore's Inner Sanctum", MinLevel = 70, MaxLevel = 70, Abbreviations = ["MMIS", "Mayong"] },
+        new() { Name = "Freethinker Hideout", MinLevel = 70, MaxLevel = 70, Abbreviations = ["FTH", "Freethinker"] },
     ];
 }

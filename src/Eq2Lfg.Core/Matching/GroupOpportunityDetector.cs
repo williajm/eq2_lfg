@@ -189,6 +189,9 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
         return true;
     }
 
+    // Only classes count: a player post's role words can be a request ("45 healer
+    // LFG for a tank" wants a tank), so they don't say what the poster brings.
+    // Archetype words ("bard", "chanter") reach Classes via ClassCatalog groups.
     private static HashSet<Role> CollectArchetypes(
         List<LfgPost> members, List<GameCharacter> own) =>
         members

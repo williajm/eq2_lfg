@@ -124,6 +124,20 @@ public class GroupOpportunityDetectorTests
     }
 
     [Fact]
+    public void Role_word_posts_contribute_archetypes_without_a_resolvable_class()
+    {
+        var detector = new GroupOpportunityDetector();
+        detector.Observe(Post("45 bard lfg", "Vex"));
+        detector.Observe(Post("48 wizard LFG", "Dorn", 1));
+        detector.Observe(Post("52 guardian lf group", "Sella", 2));
+
+        var opportunity = detector.Evaluate(T0.AddMinutes(5), []);
+
+        Assert.NotNull(opportunity);
+        Assert.Contains(Role.Support, opportunity.Archetypes);
+    }
+
+    [Fact]
     public void Repost_by_same_advertiser_replaces_rather_than_duplicates()
     {
         var detector = new GroupOpportunityDetector();
