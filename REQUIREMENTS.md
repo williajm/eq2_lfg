@@ -113,6 +113,31 @@ characters match one ad, all are listed on the match.
   - **Settings** — account/server/character availability tree, alert style toggles, cooldown window,
     level tolerance, EQ2 path, Census refresh interval, zone table editor.
 
+## Visual design
+
+The full window is meant to sit open (e.g. on a second monitor) while playing,
+so it must look polished and be readable at a glance — not a default-styled
+developer window.
+
+- **Dark theme by default** — comfortable next to a game client in a dim room;
+  a modern styled WPF look (custom control templates or a theme library such
+  as Wpf.Ui / MahApps), consistent across all views and dialogs.
+- **Match rows designed for glanceability:**
+  - the matching character (name, level, class) is the visual anchor;
+  - role and class rendered as colour-coded chips/badges using the familiar
+    MMO palette (tank = blue, healer = green, DPS = red, support = purple);
+  - zone name + level band and the advertiser's original message shown
+    beneath in secondary text;
+  - relative timestamps ("2 min ago") that update live; new matches slide in
+    at the top with a subtle highlight that fades, no flicker or jumping.
+- **Traffic view** visually distinguishes group ads from individual LFG posts;
+  still-active ads show a live last-seen indicator.
+- Clear empty states ("Watching eq2log_Bramwick.txt — no matches yet") rather
+  than blank panels; a visible status strip showing which log/character is
+  being monitored and Census cache freshness.
+- Scales cleanly when resized; usable down to a narrow column and readable on
+  a 1080p second monitor without squinting (respects Windows display scaling).
+
 ## Non-functional
 
 - Windows 11, .NET 8, WPF, MVVM.
