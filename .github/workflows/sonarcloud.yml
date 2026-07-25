@@ -1,4 +1,4 @@
-# SonarCloud analysis (project williajm_eq2_lfg in org williajm-1).
+# SonarCloud analysis (project williajm_eq2_lfg in org williajm).
 # Requires the SONAR_TOKEN repository secret; the workflow skips itself when absent.
 name: SonarCloud
 
@@ -63,6 +63,6 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm-1" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io"
+          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io"
           dotnet build Eq2Lfg.sln --configuration Release
           dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
