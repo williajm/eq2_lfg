@@ -12,14 +12,42 @@ public sealed record CensusCharacterInfo(
     string? TradeskillClass,
     int? TradeskillLevel);
 
-/// <summary>
-/// Minimal client for the Daybreak Census API (no key required for EQ2 character lookups).
-/// </summary>
-public sealed class CensusClient(HttpClient httpClient)
+public enum CensusLookupStatus
 {
-    private const string BaseUrl = "https://census.daybreakgames.com/json/get/eq2/character/";
+    /// <summary>Character found; Info is populated.</summary>
+    Found,
 
-    public async Task<CensusCharacterInfo?> GetCharacterAsync(
+    /// <summary>Census answered but has no such character on that world.</summary>
+    NotFound,
+
+    /// <summary>Rate limited, offline, or malformed response — worth retrying later.</summary>
+    Error,
+}
+
+public sealed record CensusLookup(CensusLookupStatus Status, CensusCharacterInfo? Info)
+{
+    public static readonly CensusLookup NotFound = new(CensusLookupStatus.NotFound, null);
+    public static readonly CensusLookup Error = new(CensusLookupStatus.Error, null);
+}
+
+public interface ICensusClient
+{
+    Task<CensusLookup> LookupAsync(string name, string world, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Minimal client for the Daybreak Census API. Anonymous access allows roughly 10
+/// requests per minute before returning a "Missing Service ID" error; registering a
+/// free service ID (https://census.daybreakgames.com) lifts the limit.
+/// </summary>
+public sealed class CensusClient(HttpClient httpClient, string? serviceId = null) : ICensusClient
+{
+    private string BaseUrl =>
+        string.IsNullOrWhiteSpace(serviceId)
+            ? "https://census.daybreakgames.com/json/get/eq2/character/"
+            : $"https://census.daybreakgames.com/s:{serviceId.Trim()}/json/get/eq2/character/";
+
+    public async Task<CensusLookup> LookupAsync(
         string name, string world, CancellationToken cancellationToken = default)
     {
         var url =
@@ -35,28 +63,38 @@ public sealed class CensusClient(HttpClient httpClient)
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return null;
+            return CensusLookup.Error;
         }
 
-        var character = response?.CharacterList?.FirstOrDefault();
+        if (response is null || response.Error is not null)
+        {
+            return CensusLookup.Error;
+        }
+
+        var character = response.CharacterList?.FirstOrDefault();
         if (character?.Name?.First is null)
         {
-            return null;
+            return response.CharacterList is null ? CensusLookup.Error : CensusLookup.NotFound;
         }
 
-        return new CensusCharacterInfo(
-            character.Name.First,
-            character.LocationData?.World ?? world,
-            character.Type?.Class,
-            character.Type?.Level,
-            character.Type?.TsClass,
-            character.Type?.TsLevel);
+        return new CensusLookup(
+            CensusLookupStatus.Found,
+            new CensusCharacterInfo(
+                character.Name.First,
+                character.LocationData?.World ?? world,
+                character.Type?.Class,
+                character.Type?.Level,
+                character.Type?.TsClass,
+                character.Type?.TsLevel));
     }
 
     private sealed class CensusResponse
     {
         [JsonPropertyName("character_list")]
         public List<CensusCharacter>? CharacterList { get; set; }
+
+        [JsonPropertyName("error")]
+        public string? Error { get; set; }
     }
 
     private sealed class CensusCharacter

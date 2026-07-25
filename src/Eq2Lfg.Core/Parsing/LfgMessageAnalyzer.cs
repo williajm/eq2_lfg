@@ -23,6 +23,15 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(?:anyone|any1|any\s+(?:grp|group)s?)\s+(?:need|want)\b", RegexOptions.IgnoreCase)]
     private static partial Regex SelfOfferRegex();
 
+    // Guild recruitment: "<Lucid Dreams> Seeking sk/monk ... Full Time Position Raiders",
+    // "Velocity is lookin for Dirge/Healers ... for raiding ... accept all casuals".
+    [GeneratedRegex(@"^\s*<[^>]+>|\b(?:guild|recruit\w*|raiders|raiding|casuals?|full\s*time|apply|discord)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex RecruitmentRegex();
+
+    // "WILL MENTOR 40+" / "can mentor" / "mentor down"
+    [GeneratedRegex(@"\bmentor\w*(?:\s+(?:down\s+)?(?:to\s+)?(\d{1,3})\s*\+?)?", RegexOptions.IgnoreCase)]
+    private static partial Regex MentorRegex();
+
     [GeneratedRegex(@"\b(?:lvl?|level)?\s*(\d{1,3})\b", RegexOptions.IgnoreCase)]
     private static partial Regex LevelRegex();
 
@@ -50,10 +59,19 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             return new LfgPost { Kind = PostKind.Spam, Message = message };
         }
 
+        if (RecruitmentRegex().IsMatch(text))
+        {
+            return new LfgPost { Kind = PostKind.Recruitment, Message = message };
+        }
+
         var roles = ExtractRoles(text);
         var classes = ExtractClasses(text);
         var zone = zoneTable.FindInText(text);
-        var statedLevels = ExtractLevels(text);
+        var mentorMatch = MentorRegex().Match(text);
+        var mentorFloor = mentorMatch.Success && mentorMatch.Groups[1].Success
+            ? int.Parse(mentorMatch.Groups[1].Value)
+            : (int?)null;
+        var statedLevels = ExtractLevels(text, exceptValue: mentorFloor);
 
         var looksLikeGroupAd = GroupAdRegex().IsMatch(text) && !SelfOfferRegex().IsMatch(text);
         var looksLikePlayerLfg = PlayerLfgRegex().IsMatch(text) || SelfOfferRegex().IsMatch(text);
@@ -90,6 +108,8 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             ZoneMinLevel = zone?.MinLevel,
             ZoneMaxLevel = zone?.MaxLevel,
             StatedLevels = statedLevels,
+            WillMentor = mentorMatch.Success,
+            MentorFloor = mentorFloor,
         };
     }
 
@@ -134,14 +154,15 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         return classes;
     }
 
-    private static List<int> ExtractLevels(string text)
+    private static List<int> ExtractLevels(string text, int? exceptValue = null)
     {
         var levels = new List<int>();
         foreach (Match m in LevelRegex().Matches(text))
         {
             var value = int.Parse(m.Groups[1].Value);
             // Group sizes ("need 2 dps") are small; plausible levels are 10-130.
-            if (value is >= 10 and <= 130 && !levels.Contains(value))
+            // A mentor floor ("mentor 40+") is a limit, not a character level.
+            if (value is >= 10 and <= 130 && value != exceptValue && !levels.Contains(value))
             {
                 levels.Add(value);
             }

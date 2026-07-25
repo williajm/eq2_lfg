@@ -6,12 +6,23 @@ namespace Eq2Lfg.Core.Census;
 
 /// <summary>
 /// Fills in class/level for roster characters: Census first, then a local JSON cache,
-/// then the class-channel hint from uisettings.xml. Level-up messages seen in the log
-/// update the store live via <see cref="ApplyLevelUp"/>.
+/// then the class-channel hint from uisettings.xml. Only stale cache entries are
+/// re-queried, and characters Census doesn't know (deleted, EU) are remembered so they
+/// aren't hammered every refresh. Level-ups seen in the log update the store live via
+/// <see cref="ApplyLevelUp"/>.
 /// </summary>
-public sealed class CharacterDataService(CensusClient censusClient, string cacheFilePath)
+public sealed class CharacterDataService(ICensusClient censusClient, string cacheFilePath)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
+    /// <summary>Pause between Census requests to stay under the anonymous rate limit.</summary>
+    public TimeSpan RequestSpacing { get; init; } = TimeSpan.FromSeconds(1.5);
+
+    /// <summary>Wait after a rate-limit error before continuing (the limit window is ~1 minute).</summary>
+    public TimeSpan RateLimitBackoff { get; init; } = TimeSpan.FromSeconds(61);
+
+    /// <summary>Known-missing characters are re-checked at most this often.</summary>
+    public TimeSpan NotFoundMaxAge { get; init; } = TimeSpan.FromHours(24);
 
     private sealed record CachedEntry(
         string? Class,
@@ -20,77 +31,78 @@ public sealed class CharacterDataService(CensusClient censusClient, string cache
         int? TradeskillLevel,
         DateTimeOffset RefreshedUtc);
 
-    /// <summary>Pause between Census requests — rapid sequential queries get rate-limited.</summary>
-    private static readonly TimeSpan RequestSpacing = TimeSpan.FromMilliseconds(500);
-
     /// <summary>
-    /// Populates <paramref name="characters"/> in place. Returns the number of characters
-    /// successfully refreshed from Census (0 means fully offline / cache-only).
+    /// Populates <paramref name="characters"/> in place, querying Census only for entries
+    /// whose cache is older than <paramref name="maxAge"/>. Returns the number of
+    /// characters refreshed from Census this pass.
     /// </summary>
     public async Task<int> PopulateAsync(
         IReadOnlyList<GameCharacter> characters,
         string eq2Directory,
+        TimeSpan maxAge,
         CancellationToken cancellationToken = default)
     {
         var cache = LoadCache();
         var refreshed = 0;
-        var first = true;
+        var rateLimitHits = 0;
+        var queried = false;
 
         foreach (var character in characters)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!first)
+            cache.TryGetValue(character.Key, out var cached);
+            if (IsFresh(cached, maxAge) || rateLimitHits >= 2)
+            {
+                ApplyFallback(character, cached, eq2Directory);
+                continue;
+            }
+
+            if (queried)
             {
                 await Task.Delay(RequestSpacing, cancellationToken).ConfigureAwait(false);
             }
 
-            first = false;
-            var info = await censusClient
-                .GetCharacterAsync(character.Name, character.Server, cancellationToken)
+            queried = true;
+            var lookup = await censusClient
+                .LookupAsync(character.Name, character.Server, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (info is null)
+            if (lookup.Status == CensusLookupStatus.Error)
             {
-                // One retry after a longer pause; transient throttling is common.
-                await Task.Delay(RequestSpacing * 3, cancellationToken).ConfigureAwait(false);
-                info = await censusClient
-                    .GetCharacterAsync(character.Name, character.Server, cancellationToken)
+                rateLimitHits++;
+                await Task.Delay(RateLimitBackoff, cancellationToken).ConfigureAwait(false);
+                lookup = await censusClient
+                    .LookupAsync(character.Name, character.Server, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            if (info?.Class is not null)
+            switch (lookup)
             {
-                character.Class = ClassCatalog.ResolveClass(info.Class) ?? info.Class;
-                character.Level = info.Level;
-                character.TradeskillClass = info.TradeskillClass;
-                character.TradeskillLevel = info.TradeskillLevel;
-                character.DataSource = "census";
-                character.LastRefreshedUtc = DateTimeOffset.UtcNow;
-                cache[character.Key] = new CachedEntry(
-                    character.Class, character.Level,
-                    character.TradeskillClass, character.TradeskillLevel,
-                    character.LastRefreshedUtc.Value);
-                refreshed++;
-                continue;
-            }
+                case { Status: CensusLookupStatus.Found, Info: { Class: not null } info }:
+                    character.Class = ClassCatalog.ResolveClass(info.Class) ?? info.Class;
+                    character.Level = info.Level;
+                    character.TradeskillClass = info.TradeskillClass;
+                    character.TradeskillLevel = info.TradeskillLevel;
+                    character.DataSource = "census";
+                    character.LastRefreshedUtc = DateTimeOffset.UtcNow;
+                    cache[character.Key] = new CachedEntry(
+                        character.Class, character.Level,
+                        character.TradeskillClass, character.TradeskillLevel,
+                        character.LastRefreshedUtc.Value);
+                    refreshed++;
+                    break;
 
-            if (cache.TryGetValue(character.Key, out var cached))
-            {
-                character.Class = cached.Class;
-                character.Level = cached.Level;
-                character.TradeskillClass = cached.TradeskillClass;
-                character.TradeskillLevel = cached.TradeskillLevel;
-                character.DataSource = "cache";
-                character.LastRefreshedUtc = cached.RefreshedUtc;
-                continue;
-            }
+                case { Status: CensusLookupStatus.NotFound }:
+                    cache[character.Key] = new CachedEntry(
+                        null, null, null, null, DateTimeOffset.UtcNow);
+                    ApplyFallback(character, cache[character.Key], eq2Directory);
+                    break;
 
-            var hinted = ClassChannelHint.DetectClass(eq2Directory, character.Server, character.Name);
-            if (hinted is not null)
-            {
-                character.Class = hinted;
-                character.DataSource = "channel-hint";
+                default:
+                    rateLimitHits++;
+                    ApplyFallback(character, cached, eq2Directory);
+                    break;
             }
         }
 
@@ -109,6 +121,44 @@ public sealed class CharacterDataService(CensusClient censusClient, string cache
             character.TradeskillClass, character.TradeskillLevel,
             DateTimeOffset.UtcNow);
         SaveCache(cache);
+    }
+
+    private bool IsFresh(CachedEntry? entry, TimeSpan maxAge)
+    {
+        if (entry is null)
+        {
+            return false;
+        }
+
+        var age = DateTimeOffset.UtcNow - entry.RefreshedUtc;
+        var limit = entry.Class is null
+            ? NotFoundMaxAge > maxAge ? NotFoundMaxAge : maxAge
+            : maxAge;
+        return age < limit;
+    }
+
+    private static void ApplyFallback(GameCharacter character, CachedEntry? cached, string eq2Directory)
+    {
+        if (cached?.Class is not null)
+        {
+            character.Class = cached.Class;
+            character.Level = cached.Level;
+            character.TradeskillClass = cached.TradeskillClass;
+            character.TradeskillLevel = cached.TradeskillLevel;
+            character.DataSource = "cache";
+            character.LastRefreshedUtc = cached.RefreshedUtc;
+            return;
+        }
+
+        if (character.Class is null)
+        {
+            var hinted = ClassChannelHint.DetectClass(eq2Directory, character.Server, character.Name);
+            if (hinted is not null)
+            {
+                character.Class = hinted;
+                character.DataSource = "channel-hint";
+            }
+        }
     }
 
     private Dictionary<string, CachedEntry> LoadCache()

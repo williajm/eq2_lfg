@@ -101,8 +101,10 @@ public class MatchEngineTests
         var match = Assert.Single(matches);
         Assert.Contains("level 55±5", match.Reasons);
 
-        var farAd = Ad("need healer for 40 grp");
-        Assert.Empty(engine.FindMatches(farAd, [Bramwick]));
+        // A lower-level group still matches — Bramwick can mentor down to it.
+        var lowerAd = Ad("need healer for 40 grp");
+        var mentorMatch = Assert.Single(engine.FindMatches(lowerAd, [Bramwick]));
+        Assert.Contains("can mentor down to 40", mentorMatch.Reasons);
     }
 
     [Fact]

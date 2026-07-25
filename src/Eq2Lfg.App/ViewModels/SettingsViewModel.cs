@@ -43,6 +43,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         levelTolerance = settings.LevelTolerance;
         censusRefreshMinutes = settings.CensusRefreshMinutes;
         eq2Directory = settings.Eq2Directory;
+        censusServiceId = settings.CensusServiceId;
+        allowMentorDown = settings.AllowMentorDown;
+        opportunityMinPlayers = settings.OpportunityMinPlayers;
+        opportunityLevelSpread = settings.OpportunityLevelSpread;
 
         BuildAvailabilityTree();
         BuildZoneRows();
@@ -68,6 +72,42 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private string eq2Directory = "";
+
+    [ObservableProperty]
+    private string censusServiceId = "";
+
+    [ObservableProperty]
+    private bool allowMentorDown;
+
+    [ObservableProperty]
+    private int opportunityMinPlayers;
+
+    [ObservableProperty]
+    private int opportunityLevelSpread;
+
+    partial void OnCensusServiceIdChanged(string value)
+    {
+        settings.CensusServiceId = value.Trim();
+        Persist();
+    }
+
+    partial void OnAllowMentorDownChanged(bool value)
+    {
+        settings.AllowMentorDown = value;
+        Persist();
+    }
+
+    partial void OnOpportunityMinPlayersChanged(int value)
+    {
+        settings.OpportunityMinPlayers = Math.Clamp(value, 2, 6);
+        Persist();
+    }
+
+    partial void OnOpportunityLevelSpreadChanged(int value)
+    {
+        settings.OpportunityLevelSpread = Math.Clamp(value, 0, 30);
+        Persist();
+    }
 
     partial void OnToastAlertsChanged(bool value)
     {

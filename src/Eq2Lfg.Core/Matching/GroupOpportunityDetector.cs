@@ -15,6 +15,9 @@ public sealed record GroupOpportunityOptions
 
     /// <summary>Minimum distinct archetypes (tank/healer/dps/support) covered.</summary>
     public int MinArchetypes { get; init; } = 2;
+
+    /// <summary>Higher-level posters/characters count as compatible — they can mentor down.</summary>
+    public bool AllowMentorDown { get; init; } = true;
 }
 
 /// <summary>A cluster of compatible player-LFG posts that could seed a new group.</summary>
@@ -98,9 +101,25 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
             bool InWindow(int level) =>
                 anchor is not null && level >= anchor && level <= anchor + options.LevelSpread;
 
-            var members = posts
-                .Where(p => p.StatedLevels.Count == 0 || p.StatedLevels.Any(InWindow))
-                .ToList();
+            bool Fits(LfgPost p)
+            {
+                if (p.StatedLevels.Count == 0 || p.StatedLevels.Any(InWindow))
+                {
+                    return true;
+                }
+
+                // "70 fury LFG WILL MENTOR 40+" can play any level between the
+                // mentor floor and their actual level.
+                if (options.AllowMentorDown && p.WillMentor && anchor is { } a)
+                {
+                    var floor = p.MentorFloor ?? 1;
+                    return floor <= a + options.LevelSpread && p.StatedLevels.Max() >= a;
+                }
+
+                return false;
+            }
+
+            var members = posts.Where(Fits).ToList();
             if (members.Count == 0)
             {
                 continue;
@@ -114,7 +133,7 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
                 .Where(c => min is null
                     || (c.Level is not null
                         && c.Level >= min - options.LevelSpread
-                        && c.Level <= max + options.LevelSpread))
+                        && (c.Level <= max + options.LevelSpread || options.AllowMentorDown)))
                 .ToList();
 
             var archetypes = new HashSet<Role>();

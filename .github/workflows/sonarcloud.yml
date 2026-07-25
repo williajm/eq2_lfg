@@ -1,0 +1,58 @@
+# SonarCloud analysis. Requires one-time setup:
+# 1. Sign in at https://sonarcloud.io with GitHub (free for public repos).
+# 2. Import the eq2_lfg repository (organization: williajm).
+# 3. Create a token (My Account → Security) and add it as the SONAR_TOKEN
+#    repository secret on GitHub.
+# Until the secret exists this workflow skips itself.
+name: SonarCloud
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sonar:
+    runs-on: windows-latest
+    steps:
+      - name: Check for SONAR_TOKEN
+        id: check
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if ($env:SONAR_TOKEN) { "present=true" >> $env:GITHUB_OUTPUT }
+          else { "present=false" >> $env:GITHUB_OUTPUT; Write-Host "SONAR_TOKEN not set - skipping analysis" }
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.present == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Setup Java (for Sonar scanner)
+        if: steps.check.outputs.present == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install scanner
+        if: steps.check.outputs.present == 'true'
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Build and analyze
+        if: steps.check.outputs.present == 'true'
+        shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io"
+          dotnet build Eq2Lfg.sln --configuration Release
+          dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"

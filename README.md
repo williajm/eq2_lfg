@@ -34,6 +34,25 @@ dotnet test tests/Eq2Lfg.Core.Tests
 Run `src/Eq2Lfg.App/bin/.../Eq2Lfg.App.exe`. Closing the window minimizes to the
 tray; Exit from the tray menu to quit.
 
+## Quality gates
+
+- **CI** (`.github/workflows/ci.yml`): `dotnet format --verify-no-changes`,
+  build with warnings-as-errors, and unit tests on every push/PR.
+- **CodeQL** (`codeql.yml`): C# security/quality analysis on pushes, PRs, and
+  a weekly schedule.
+- **SonarCloud** (`sonarcloud.yml`): skips until you finish the one-time setup —
+  sign in at sonarcloud.io with GitHub, import this repo, and add a
+  `SONAR_TOKEN` repository secret (free for public repos).
+- **Branch protection**: PRs into `main` must pass the `build` and
+  `Analyze (csharp)` checks and be up to date with `main`.
+
+## Census rate limit
+
+Anonymous Census API access allows ~10 lookups/minute. The app stays under it
+(stale-entry-only refreshes, not-found caching, backoff), but if you have many
+characters you can register a free service ID at census.daybreakgames.com and
+set it in Settings to lift the limit.
+
 ## Configuration
 
 Settings live in `%LOCALAPPDATA%\Eq2Lfg\settings.json` and are all editable from

@@ -85,6 +85,21 @@
                       Text="{Binding OwnText}"
                       TextWrapping="Wrap"
                       Visibility="{Binding OwnText, Converter={StaticResource StringToVisibility}}" />
+                    <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+                      <Button Command="{Binding CopyMessageCommand}" Content="Copy invite message" />
+                      <TextBlock
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Center"
+                        Foreground="#7BD88F"
+                        Text="Copied — paste it in chat"
+                        Visibility="{Binding Copied, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                    <TextBlock
+                      Margin="0,4,0,0"
+                      FontSize="11"
+                      Foreground="{StaticResource SecondaryText}"
+                      Text="{Binding SuggestedMessage}"
+                      TextWrapping="Wrap" />
                   </StackPanel>
                 </Border>
               </DataTemplate>
@@ -240,12 +255,18 @@
           <CheckBox Content="Highlight new matches in the app" IsChecked="{Binding InAppAlerts}" />
 
           <TextBlock Style="{StaticResource SectionHeader}" Text="Matching" />
+          <CheckBox
+            Margin="0,0,0,6"
+            Content="Match higher-level characters (they can mentor down)"
+            IsChecked="{Binding AllowMentorDown}" />
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="90" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
@@ -283,10 +304,40 @@
               Grid.Column="1"
               Margin="0,0,0,6"
               Text="{Binding CensusRefreshMinutes, UpdateSourceTrigger=LostFocus}" />
+            <TextBlock
+              Grid.Row="3"
+              Grid.Column="0"
+              Margin="0,0,12,6"
+              VerticalAlignment="Center"
+              Text="Group opportunity: minimum players" />
+            <TextBox
+              Grid.Row="3"
+              Grid.Column="1"
+              Margin="0,0,0,6"
+              Text="{Binding OpportunityMinPlayers, UpdateSourceTrigger=LostFocus}" />
+            <TextBlock
+              Grid.Row="4"
+              Grid.Column="0"
+              Margin="0,0,12,6"
+              VerticalAlignment="Center"
+              Text="Group opportunity: level spread" />
+            <TextBox
+              Grid.Row="4"
+              Grid.Column="1"
+              Margin="0,0,0,6"
+              Text="{Binding OpportunityLevelSpread, UpdateSourceTrigger=LostFocus}" />
           </Grid>
 
           <TextBlock Style="{StaticResource SectionHeader}" Text="EQ2 directory" />
           <TextBox Text="{Binding Eq2Directory, UpdateSourceTrigger=LostFocus}" />
+
+          <TextBlock Style="{StaticResource SectionHeader}" Text="Census service ID (optional)" />
+          <TextBlock
+            Margin="0,0,0,6"
+            Foreground="{StaticResource SecondaryText}"
+            Text="Anonymous Census access is limited to ~10 lookups/minute. Register a free service ID at census.daybreakgames.com to lift the limit."
+            TextWrapping="Wrap" />
+          <TextBox Text="{Binding CensusServiceId, UpdateSourceTrigger=LostFocus}" />
 
           <TextBlock Style="{StaticResource SectionHeader}" Text="Available characters" />
           <TextBlock

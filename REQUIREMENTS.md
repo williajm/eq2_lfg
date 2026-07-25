@@ -31,6 +31,11 @@ tests are fictional; real player names from live logs must not be committed.
 - **Fallback hint:** the class chat channel recorded in
   `<Server>_<Name>_eq2_uisettings.xml` (EQ2 auto-joins each character to its
   class channel), used when Census is unavailable and no cache exists.
+- Anonymous Census access is limited to ~10 requests/minute; the app stays
+  under it by re-querying only stale cache entries, remembering characters
+  Census doesn't know (deleted/EU), and backing off when rate-limited. An
+  optional registered service ID (free) lifts the limit and can be set in
+  settings.
 
 ### Chat log
 - The app watches the single active log file `logs\<Server>\eq2log_<Name>.txt`.
@@ -48,6 +53,11 @@ tests are fictional; real player names from live logs must not be committed.
 - **Individual player posts** (`52 Warlock LF exp group`) are shown in the
   in-app traffic list for context but never trigger alerts on their own.
 - Sales / powerlevel-service spam (`WTS powerleveling 1-70 ...`) is filtered out.
+- **Guild recruitment** messages (`<Guild> Seeking sk/monk ... raiders`,
+  `X is recruiting healers for raiding`) are excluded even when they name
+  classes/roles — they are not group ads.
+- **Server scoping:** chat channels are per-server, so ads are matched only
+  against the user's characters on the active log's server.
 
 ### Intelligence
 - Parses **roles**: tank, healer, DPS, support/utility.
@@ -55,7 +65,14 @@ tests are fictional; real player names from live logs must not be committed.
   wiz, lock, conj, mystic, fury, ...).
 - Built-in **class → role mapping** (e.g. Warden/Fury/Mystic/Templar → healer;
   Guardian/Berserker/Monk/... → tank; Conjuror/Wizard/Warlock/... → DPS).
-- Parses **stated levels** (`52 warlock`, `Lv45 Fury`).
+- Parses **stated levels** (`52 warlock`, `Lv45 Fury`), including multiboxer
+  posts with several level/class pairs (`16 Dirge / 47 Conj / 70 Warden LFG`).
+- **Mentoring:** EQ2 lets a higher-level character lower their level to a
+  group's. Characters *above* an ad's level range therefore still match
+  (reason shown as "can mentor down ..."; toggleable in settings), and player
+  posts offering to mentor (`70 fury LFG WILL MENTOR 40+`) are treated as
+  compatible with any cluster down to their stated mentor floor. Characters
+  *below* a range never match upward.
 
 ### Zone-aware level matching
 - A seeded zone table maps abbreviations → zone name → level band
@@ -86,6 +103,11 @@ player-LFG posts for the makings of a *new* group:
   qualifies and is shown as such.
 - Thresholds (window, spread, min players, min archetypes) configurable in
   settings; the same per-cluster cooldown rules apply as for group ads.
+- Each opportunity offers a **"Copy invite message"** action: a ready-to-paste
+  chat line (e.g. `Vex, Dorn — saw you all LFG. I can bring my 59 Warden
+  (Bramwick). Want to form a group?`) is copied to the clipboard for the user
+  to paste in game. This is the only clipboard feature; nothing is sent
+  automatically.
 
 ### Character selection
 - Availability is configured as a three-level hierarchy so entire branches can
@@ -169,3 +191,7 @@ developer window.
 - Repository workflow: development on `dev` branch, PRs into `main`,
   GitHub Actions CI runs `dotnet build` + tests; linters and unit tests pass
   before any push.
+- **Quality gates (public repo):** PRs into `main` must pass the CI check
+  (format + build + test) via branch protection; CodeQL analysis runs on
+  pushes/PRs; SonarCloud analysis runs when the `SONAR_TOKEN` secret is
+  configured (free for public repos).

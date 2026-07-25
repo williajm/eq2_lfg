@@ -20,6 +20,17 @@ public sealed class AppSettings
     public int LevelTolerance { get; set; } = 5;
     public int CensusRefreshMinutes { get; set; } = 60;
 
+    /// <summary>Optional registered Census service ID (lifts the ~10 req/min anonymous limit).</summary>
+    public string CensusServiceId { get; set; } = "";
+
+    /// <summary>Match characters above an ad's level range — they can mentor down.</summary>
+    public bool AllowMentorDown { get; set; } = true;
+
+    public int OpportunityMinPlayers { get; set; } = 3;
+    public int OpportunityMinArchetypes { get; set; } = 2;
+    public int OpportunityLevelSpread { get; set; } = 10;
+    public int OpportunityWindowMinutes { get; set; } = 30;
+
     /// <summary>Accounts entirely disabled, e.g. "williajm-eu".</summary>
     public HashSet<string> DisabledAccounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 

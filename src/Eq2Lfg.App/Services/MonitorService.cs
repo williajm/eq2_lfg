@@ -48,7 +48,7 @@ public sealed class MonitorService : IDisposable
 
     public ZoneTable Zones { get; }
     public IReadOnlyList<GameCharacter> Roster { get; private set; } = [];
-    public GroupOpportunityDetector OpportunityDetector { get; } = new();
+    public GroupOpportunityDetector OpportunityDetector { get; private set; }
     public MonitorStatus Status { get; private set; } = new(null, null, 0, 0, null);
 
     public event Action<LfgPost>? TrafficSeen;
@@ -61,13 +61,35 @@ public sealed class MonitorService : IDisposable
         this.settings = settings;
         Zones = ZoneTable.LoadOrSeed(AppSettings.DefaultZonesPath);
         analyzer = new LfgMessageAnalyzer(Zones);
-        matchEngine = new MatchEngine(new MatchOptions { LevelTolerance = settings.LevelTolerance });
+        matchEngine = CreateMatchEngine();
+        OpportunityDetector = CreateOpportunityDetector();
         adCooldown = new CooldownTracker(TimeSpan.FromMinutes(settings.CooldownMinutes));
         dataService = new CharacterDataService(
-            new CensusClient(httpClient), AppSettings.DefaultCachePath);
+            new CensusClient(httpClient, NullIfEmpty(settings.CensusServiceId)),
+            AppSettings.DefaultCachePath);
         timer = new DispatcherTimer { Interval = PollInterval };
         timer.Tick += (_, _) => Poll();
     }
+
+    private MatchEngine CreateMatchEngine() =>
+        new(new MatchOptions
+        {
+            LevelTolerance = settings.LevelTolerance,
+            AllowMentorDown = settings.AllowMentorDown,
+        });
+
+    private GroupOpportunityDetector CreateOpportunityDetector() =>
+        new(new GroupOpportunityOptions
+        {
+            MinPlayers = settings.OpportunityMinPlayers,
+            MinArchetypes = settings.OpportunityMinArchetypes,
+            LevelSpread = settings.OpportunityLevelSpread,
+            Window = TimeSpan.FromMinutes(settings.OpportunityWindowMinutes),
+            AllowMentorDown = settings.AllowMentorDown,
+        });
+
+    private static string? NullIfEmpty(string value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
 
     public void Start()
     {
@@ -80,8 +102,9 @@ public sealed class MonitorService : IDisposable
     /// <summary>Re-read tunables after the user changes settings.</summary>
     public void ApplySettings()
     {
-        matchEngine = new MatchEngine(new MatchOptions { LevelTolerance = settings.LevelTolerance });
+        matchEngine = CreateMatchEngine();
         adCooldown = new CooldownTracker(TimeSpan.FromMinutes(settings.CooldownMinutes));
+        OpportunityDetector = CreateOpportunityDetector();
     }
 
     /// <summary>Re-create the analyzer after the zone table is edited.</summary>
@@ -91,8 +114,12 @@ public sealed class MonitorService : IDisposable
         analyzer = new LfgMessageAnalyzer(Zones);
     }
 
+    /// <summary>
+    /// Characters eligible for matching: enabled and on the active log's server —
+    /// chat channels are per-server, so characters elsewhere can't join anyway.
+    /// </summary>
     public IEnumerable<GameCharacter> EnabledCharacters() =>
-        Roster.Where(settings.IsEnabled);
+        RosterFilter.Eligible(Roster, settings, activeLog?.Server);
 
     private void Poll()
     {
@@ -228,7 +255,10 @@ public sealed class MonitorService : IDisposable
         lastCensusRefresh = DateTimeOffset.UtcNow;
         try
         {
-            censusRefreshedCount = await dataService.PopulateAsync(Roster, settings.Eq2Directory);
+            censusRefreshedCount = await dataService.PopulateAsync(
+                Roster,
+                settings.Eq2Directory,
+                TimeSpan.FromMinutes(Math.Max(5, settings.CensusRefreshMinutes)));
             censusRefreshedAt = DateTimeOffset.UtcNow;
             PublishStatus();
         }

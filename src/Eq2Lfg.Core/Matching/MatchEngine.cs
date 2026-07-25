@@ -6,6 +6,12 @@ public sealed record MatchOptions
 {
     /// <summary>How far outside a stated level / zone band a character may be and still match.</summary>
     public int LevelTolerance { get; init; } = 5;
+
+    /// <summary>
+    /// Characters above the ad's level range still match — EQ2 mentoring lets a higher-level
+    /// character lower their level to the group's.
+    /// </summary>
+    public bool AllowMentorDown { get; init; } = true;
 }
 
 /// <summary>
@@ -73,7 +79,18 @@ public sealed class MatchEngine(MatchOptions options)
 
         if (post.StatedLevel is { } stated)
         {
-            if (Math.Abs(level - stated) > options.LevelTolerance)
+            if (level > stated + options.LevelTolerance)
+            {
+                if (!options.AllowMentorDown)
+                {
+                    return false;
+                }
+
+                reasons.Add($"can mentor down to {stated}");
+                return true;
+            }
+
+            if (level < stated - options.LevelTolerance)
             {
                 return false;
             }
@@ -84,7 +101,18 @@ public sealed class MatchEngine(MatchOptions options)
 
         if (post is { ZoneMinLevel: { } min, ZoneMaxLevel: { } max })
         {
-            if (level < min - options.LevelTolerance || level > max + options.LevelTolerance)
+            if (level > max + options.LevelTolerance)
+            {
+                if (!options.AllowMentorDown)
+                {
+                    return false;
+                }
+
+                reasons.Add($"can mentor down to {post.ZoneName} {min}-{max}");
+                return true;
+            }
+
+            if (level < min - options.LevelTolerance)
             {
                 return false;
             }

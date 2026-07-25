@@ -103,11 +103,31 @@ public sealed class TrafficRow : TimedRow
 }
 
 /// <summary>A cluster of LFG players that could form a new group.</summary>
-public sealed class OpportunityRow : TimedRow
+public sealed partial class OpportunityRow : TimedRow
 {
     public required string TitleText { get; init; }
     public required string PlayersText { get; init; }
     public required string OwnText { get; init; }
+
+    /// <summary>Ready-to-paste chat line inviting the players to form the group.</summary>
+    public required string SuggestedMessage { get; init; }
+
+    [ObservableProperty]
+    private bool copied;
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private void CopyMessage()
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(SuggestedMessage);
+            Copied = true;
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            // Clipboard can be briefly locked by another process; ignore.
+        }
+    }
 
     public static OpportunityRow From(GroupOpportunity opportunity)
     {
@@ -127,6 +147,7 @@ public sealed class OpportunityRow : TimedRow
             OwnText = opportunity.OwnCandidates.Count > 0
                 ? "You could bring: " + string.Join(", ", opportunity.OwnCandidates.Select(c => c.Display))
                 : "",
+            SuggestedMessage = OpportunityMessage.Compose(opportunity),
             IsNew = true,
         };
     }

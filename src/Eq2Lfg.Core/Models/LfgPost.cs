@@ -11,6 +11,9 @@ public enum PostKind
     /// <summary>Sales / powerlevel-service / other spam that mentions LFG-ish words.</summary>
     Spam,
 
+    /// <summary>Guild recruitment ("&lt;Guild&gt; is recruiting healers for raiding") — excluded from matching.</summary>
+    Recruitment,
+
     /// <summary>Chat that carries no LFG-relevant content.</summary>
     NotLfg,
 }
@@ -40,6 +43,12 @@ public sealed record LfgPost
 
     /// <summary>The first level stated in the message, if any.</summary>
     public int? StatedLevel => StatedLevels.Count > 0 ? StatedLevels[0] : null;
+
+    /// <summary>The poster offered to mentor down ("70 fury LFG WILL MENTOR 40+").</summary>
+    public bool WillMentor { get; init; }
+
+    /// <summary>Lowest level the poster will mentor down to, when stated ("mentor 40+").</summary>
+    public int? MentorFloor { get; init; }
 
     public string Advertiser => Message.Speaker;
 
