@@ -54,6 +54,12 @@ public static class ClassCatalog
         (["bard"], ["Dirge", "Troubador"]),
         (["predator", "pred"], ["Assassin", "Ranger"]),
         (["rogue"], ["Swashbuckler", "Brigand"]),
+        // Top-tier archetypes that don't collapse to a single role: mages span
+        // Dps and Support (enchanters), scouts span Dps and Support (bards).
+        (["mage", "caster"],
+            ["Wizard", "Warlock", "Conjuror", "Necromancer", "Illusionist", "Coercer"]),
+        (["scout"],
+            ["Swashbuckler", "Brigand", "Assassin", "Ranger", "Dirge", "Troubador"]),
     ];
 
     private static readonly Dictionary<string, string> AliasToClass = BuildAliasMap();

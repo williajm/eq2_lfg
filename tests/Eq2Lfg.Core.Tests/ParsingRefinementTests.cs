@@ -117,6 +117,58 @@ public class ParsingRefinementTests
     }
 
     [Fact]
+    public void Members_in_a_group_ad_is_not_recruitment()
+    {
+        var post = Analyze("Need 2 more members for CMM");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Equal("Castle Mistmoore", post.ZoneName);
+    }
+
+    [Fact]
+    public void Offered_spot_keeps_the_requested_role()
+    {
+        var post = Analyze("CMM group has 1 spot for healer");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Contains(Role.Healer, post.WantedRoles);
+    }
+
+    [Fact]
+    public void Seeking_a_group_is_a_player_post()
+    {
+        Assert.Equal(PostKind.PlayerLfg, Analyze("52 wizard seeking group").Kind);
+        Assert.Equal(PostKind.GroupAd, Analyze("Unrest seeking Tank / DPS / Util - PST").Kind);
+    }
+
+    [Fact]
+    public void Mage_means_any_mage_subclass_not_scouts()
+    {
+        var post = Analyze("need mage for CT");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Contains("Wizard", post.Classes);
+        Assert.Contains("Conjuror", post.Classes);
+        Assert.Contains("Illusionist", post.Classes);
+        Assert.DoesNotContain("Assassin", post.Classes);
+        Assert.DoesNotContain(Role.Dps, post.WantedRoles);
+    }
+
+    [Fact]
+    public void Any_for_needs_its_context_in_the_same_clause()
+    {
+        Assert.Equal(PostKind.NotLfg, Analyze("CMM was fun. Anyone up for crafting?").Kind);
+        Assert.Equal(PostKind.GroupAd, Analyze("any heals/dps for WC? 10+").Kind);
+    }
+
+    [Fact]
+    public void Multi_word_zone_self_offers_are_player_posts()
+    {
+        Assert.Equal(
+            PostKind.PlayerLfg, Analyze("Any Fallen Gate groups need a healer?").Kind);
+    }
+
+    [Fact]
     public void Non_leather_means_cleric_or_shaman_healer()
     {
         var post = Analyze("PoA LF tank +dps/non leather");
@@ -205,6 +257,34 @@ public class ParsingRefinementTests
             Assert.Equal(62, reloaded.Resolve("cmm")!.MinLevel);
             // Seed zones absent from the file (none here) would be merged; count unchanged.
             Assert.Equal(edited.Count, reloaded.Entries.Count);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Seed_merge_appends_new_abbreviations_to_existing_entries()
+    {
+        var dir = Directory.CreateTempSubdirectory("eq2lfg-aliasmerge").FullName;
+        try
+        {
+            var path = Path.Combine(dir, "zones.json");
+
+            // A file from an older app version: no "Cata" alias yet, plus one the
+            // user added themselves.
+            var old = ZoneTable.CreateSeeded().Entries
+                .Select(e => e.Name == "Mistmoore Catacombs"
+                    ? e with { Abbreviations = ["MMC", "mycata"] }
+                    : e)
+                .ToList();
+            new ZoneTable(old).Save(path);
+
+            var reloaded = ZoneTable.LoadOrSeed(path);
+
+            Assert.Equal("Mistmoore Catacombs", reloaded.Resolve("Cata")!.Name);
+            Assert.Equal("Mistmoore Catacombs", reloaded.Resolve("mycata")!.Name);
         }
         finally
         {

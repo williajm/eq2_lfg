@@ -48,10 +48,35 @@ public sealed class ZoneTable
             var entries = JsonSerializer.Deserialize<List<ZoneEntry>>(File.ReadAllText(filePath));
             if (entries is { Count: > 0 })
             {
+                var seeds = SeedEntries();
+                var seedByName = seeds.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+                var changed = false;
+
+                // Seed abbreviations added in newer app versions are appended to the
+                // user's entry; their own aliases and level edits are untouched.
+                var merged = entries.Select(entry =>
+                {
+                    if (!seedByName.TryGetValue(entry.Name, out var seed))
+                    {
+                        return entry;
+                    }
+
+                    var missing = seed.Abbreviations
+                        .Where(a => !entry.Abbreviations.Contains(a, StringComparer.OrdinalIgnoreCase))
+                        .ToList();
+                    if (missing.Count == 0)
+                    {
+                        return entry;
+                    }
+
+                    changed = true;
+                    return entry with { Abbreviations = [.. entry.Abbreviations, .. missing] };
+                }).ToList();
+
                 var known = entries.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var additions = SeedEntries().Where(s => !known.Contains(s.Name)).ToList();
-                var table = new ZoneTable(entries.Concat(additions));
-                if (additions.Count > 0)
+                var additions = seeds.Where(s => !known.Contains(s.Name)).ToList();
+                var table = new ZoneTable(merged.Concat(additions));
+                if (changed || additions.Count > 0)
                 {
                     table.Save(filePath);
                 }

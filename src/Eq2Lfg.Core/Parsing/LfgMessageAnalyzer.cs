@@ -14,8 +14,9 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     private static partial Regex SpamRegex();
 
     // "need tank", "LFM", "LF2M", "room for 3m", "one spot in CT", "forming group",
-    // "seeking zerker/monk", "CMM 1 spot chanter/bard", "has 1 spot for anything"
-    [GeneratedRegex(@"\b(need|needs|neeed|lfm|lf\s*\d+\s*m(?:ore)?|looking\s+for|seek(?:ing|s)?|forming|making\s+group|starting|room\s+for|\d+\s*spots?|spots?\s+(?:in|open|left|for)|open\s+spots?)\b", RegexOptions.IgnoreCase)]
+    // "seeking zerker/monk", "CMM 1 spot chanter/bard", "has 1 spot for anything".
+    // "seeking (a) group" is excluded — that's a player looking, not a group asking.
+    [GeneratedRegex(@"\b(need|needs|neeed|lfm|lf\s*\d+\s*m(?:ore)?|looking\s+for|seek(?:ing|s)?\b(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b)|forming|making\s+group|starting|room\s+for|\d+\s*spots?|spots?\s+(?:in|open|left|for)|open\s+spots?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex GroupAdRegex();
 
     // Bare "LF <role/class>" ("LF healer and tank MMC", "Klak LF chanter/bard") —
@@ -25,7 +26,7 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
 
     // "any heals/dps for WC?", "anyone for FG?", "Any bard reps for PoA?" —
     // a group ad when the same clause also names a role, class, or zone.
-    [GeneratedRegex(@"\bany(?:one|1)?\b[^.!?;]*?\bfor\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(?<clause>\bany(?:one|1)?\b[^.!?;]*?\bfor\b[^.!?;]*)", RegexOptions.IgnoreCase)]
     private static partial Regex AnyForRegex();
 
     // "50+ exp group LF3M", "Giants exp group LFM!" — an experience group is a
@@ -33,23 +34,25 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(?:exp|xp)\s+gr(?:ou)?p\b", RegexOptions.IgnoreCase)]
     private static partial Regex ExpGroupRegex();
 
-    [GeneratedRegex(@"\blfg\b|\blf\b.*\bgroup\b|\blfw\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\blfg\b|\blf\b.*\bgroup\b|\blfw\b|\bseek(?:ing|s)?\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b", RegexOptions.IgnoreCase)]
     private static partial Regex PlayerLfgRegex();
 
     // "anyone need a 70 Inq?" and "Any RoV groups need a healer?" are players
-    // offering themselves, despite the word "need".
-    [GeneratedRegex(@"\b(?:anyone|any1|any\s+(?:\S+\s+)?(?:grp|group)s?)\s+(?:need|want)\b", RegexOptions.IgnoreCase)]
+    // offering themselves, despite the word "need". Zone names between "any" and
+    // "groups" may run to a few words ("Any Fallen Gate groups need a healer?").
+    [GeneratedRegex(@"\b(?:anyone|any1|any\s+(?:\S+\s+){0,3}(?:grp|group)s?)\s+(?:need|want)\b", RegexOptions.IgnoreCase)]
     private static partial Regex SelfOfferRegex();
 
     // Guild recruitment: "<Lucid Dreams> Seeking sk/monk ... Full Time Position Raiders",
     // "Velocity is lookin for Dirge/Healers ... for raiding ... accept all casuals".
     // Deliberately narrow — a mere mention of "guild" must not disqualify a genuine
     // group ad like "guild group needs healer for CMM".
-    [GeneratedRegex(@"^\s*<[^>]+>|\b(?:recruit\w*|raiders|raiding|casuals?|full\s*time|apply|members|level\s+\d+\s+guild)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\s*<[^>]+>|\b(?:recruit\w*|raiders|raiding|casuals?|full\s*time|apply|looking\s+for\s+(?:more\s+)?members|level\s+\d+\s+guild)\b", RegexOptions.IgnoreCase)]
     private static partial Regex RecruitmentRegex();
 
-    // "have tank", "already got healer": roles/classes the group HAS, not ones it wants.
-    [GeneratedRegex(@"\b(?:already\s+)?(?:have|has|got|found)\b[^,;.!|]*", RegexOptions.IgnoreCase)]
+    // "have tank", "already got healer": roles/classes the group HAS, not ones it
+    // wants. "has 1 spot for healer" offers a place, though — that clause stays.
+    [GeneratedRegex(@"\b(?:already\s+)?(?:have|has|got|found)\b(?![^,;.!|]*\b(?:spots?|room)\b)[^,;.!|]*", RegexOptions.IgnoreCase)]
     private static partial Regex HaveClauseRegex();
 
     // "WILL MENTOR 40+" / "can mentor" / "mentor down"
@@ -65,7 +68,7 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(healer?s?|heals|healz|priests?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex HealerRegex();
 
-    [GeneratedRegex(@"\b(dps|dd|damage|mages?|casters?)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(dps|dd|damage)\b", RegexOptions.IgnoreCase)]
     private static partial Regex DpsRegex();
 
     // "LF tank +dps/non leather": a healer who isn't a druid, i.e. a cleric or shaman.
@@ -106,7 +109,7 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         var statedLevels = ExtractLevels(text, exceptValue: mentorFloor);
 
         var isExpGroup = ExpGroupRegex().IsMatch(text);
-        var kind = Classify(text, roles, classes, hasZone: zone is not null, isExpGroup);
+        var kind = Classify(text, roles, classes, IsAnyForAd(text), isExpGroup);
 
         // A "group ad" that names no role, class, or zone is noise ("looking for my
         // corpse") — unless it's an exp group, which is worth surfacing on its own.
@@ -136,10 +139,27 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         };
     }
 
+    // "any heals/dps for WC?" is an ad only when the "any ... for ..." clause itself
+    // names a role, class, or zone — context from other sentences doesn't count
+    // ("CMM was fun. Anyone up for crafting?" is chatter).
+    private bool IsAnyForAd(string text)
+    {
+        var match = AnyForRegex().Match(text);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        var clause = match.Groups["clause"].Value;
+        return ExtractRoles(clause).Count > 0
+            || ExtractClasses(clause).Count > 0
+            || zoneTable.FindInText(clause) is not null;
+    }
+
     // "mystic,fury,wiz LFG" or "52 warlock LFG": the speaker is offering, not recruiting.
     // "need tank cmm" wins over "lf" phrasing when both appear ("need 2 more, we're LFG" is a group).
     private static PostKind Classify(
-        string text, List<Role> roles, List<string> classes, bool hasZone, bool isExpGroup)
+        string text, List<Role> roles, List<string> classes, bool isAnyForAd, bool isExpGroup)
     {
         var wantsSomeone = roles.Count > 0 || classes.Count > 0;
         var looksLikePlayerLfg = PlayerLfgRegex().IsMatch(text) || SelfOfferRegex().IsMatch(text);
@@ -148,9 +168,7 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
                 || (!looksLikePlayerLfg
                     && BareLfRegex().IsMatch(text)
                     && (wantsSomeone || isExpGroup))
-                || (!looksLikePlayerLfg
-                    && AnyForRegex().IsMatch(text)
-                    && (wantsSomeone || hasZone)));
+                || (!looksLikePlayerLfg && isAnyForAd));
 
         if (looksLikeGroupAd)
         {
