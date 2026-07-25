@@ -38,7 +38,26 @@ public static class ClassCatalog
         new("Troubador", Role.Support, ["troub", "troubador", "troubadour", "trub"]),
     ];
 
+    // EQ2's class tree pairs subclasses under archetype names players still use in
+    // chat ("sorc for wizard or warlock, cleric for templar or inquisitor").
+    private static readonly (string[] Aliases, string[] Members)[] Groups =
+    [
+        (["warrior"], ["Guardian", "Berserker"]),
+        (["brawler"], ["Monk", "Bruiser"]),
+        (["crusader"], ["Paladin", "Shadowknight"]),
+        (["cleric"], ["Templar", "Inquisitor"]),
+        (["druid"], ["Fury", "Warden"]),
+        (["shaman", "shammy"], ["Mystic", "Defiler"]),
+        (["sorcerer", "sorceror", "sorc"], ["Wizard", "Warlock"]),
+        (["enchanter", "chanter", "ench"], ["Illusionist", "Coercer"]),
+        (["summoner"], ["Conjuror", "Necromancer"]),
+        (["bard"], ["Dirge", "Troubador"]),
+        (["predator", "pred"], ["Assassin", "Ranger"]),
+        (["rogue"], ["Swashbuckler", "Brigand"]),
+    ];
+
     private static readonly Dictionary<string, string> AliasToClass = BuildAliasMap();
+    private static readonly Dictionary<string, string[]> AliasToGroup = BuildGroupMap();
     private static readonly Dictionary<string, Role> ClassToRole =
         Classes.ToDictionary(c => c.Name, c => c.Role, StringComparer.OrdinalIgnoreCase);
 
@@ -57,11 +76,29 @@ public static class ClassCatalog
         return map;
     }
 
+    private static Dictionary<string, string[]> BuildGroupMap()
+    {
+        var map = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (aliases, members) in Groups)
+        {
+            foreach (var alias in aliases)
+            {
+                map[alias] = members;
+            }
+        }
+
+        return map;
+    }
+
     public static IReadOnlyList<string> AllClassNames { get; } = Classes.Select(c => c.Name).ToList();
 
     /// <summary>Resolve a chat token ("wiz", "sk", "Warden") to a canonical class name, or null.</summary>
     public static string? ResolveClass(string token) =>
         AliasToClass.TryGetValue(token.Trim(), out var name) ? name : null;
+
+    /// <summary>Resolve an archetype token ("sorc", "bard", "cleric") to its member classes, or null.</summary>
+    public static IReadOnlyList<string>? ResolveClassGroup(string token) =>
+        AliasToGroup.TryGetValue(token.Trim(), out var members) ? members : null;
 
     /// <summary>The group role a class fills. Throws for unknown class names.</summary>
     public static Role RoleOf(string className) => ClassToRole[className];

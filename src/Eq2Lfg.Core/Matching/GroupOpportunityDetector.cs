@@ -192,8 +192,11 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
     private static HashSet<Role> CollectArchetypes(
         List<LfgPost> members, List<GameCharacter> own) =>
         members
-            .SelectMany(p => p.Classes)
-            .Select(cls => ClassCatalog.TryRoleOf(cls, out var r) ? (Role?)r : null)
+            .SelectMany(p => p.Classes
+                .Select(cls => ClassCatalog.TryRoleOf(cls, out var r) ? (Role?)r : null)
+                // "45 bard lfg" names no class we can resolve, but the role words
+                // in a player post still say what the poster brings.
+                .Concat(p.WantedRoles.Select(role => (Role?)role)))
             .Concat(own.Select(c => c.Role))
             .Where(role => role is not null)
             .Select(role => role!.Value)
