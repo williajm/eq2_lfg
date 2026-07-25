@@ -1,9 +1,5 @@
-# SonarCloud analysis. Requires one-time setup:
-# 1. Sign in at https://sonarcloud.io with GitHub (free for public repos).
-# 2. Import the eq2_lfg repository (organization: williajm).
-# 3. Create a token (My Account → Security) and add it as the SONAR_TOKEN
-#    repository secret on GitHub.
-# Until the secret exists this workflow skips itself.
+# SonarCloud analysis (project williajm_eq2_lfg in org williajm-1).
+# Requires the SONAR_TOKEN repository secret; the workflow skips itself when absent.
 name: SonarCloud
 
 on:
@@ -47,32 +43,18 @@ jobs:
         if: steps.check.outputs.present == 'true'
         run: dotnet tool install --global dotnet-sonarscanner
 
-      - name: Provision Sonar project (no-op if it exists)
+      - name: Disable automatic analysis (CI analysis is used instead)
         if: steps.check.outputs.present == 'true'
         shell: pwsh
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          $pair = "$($env:SONAR_TOKEN):"
-          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
-          $headers = @{ Authorization = "Basic $auth" }
-
-          $valid = Invoke-RestMethod -Uri "https://sonarcloud.io/api/authentication/validate" -Headers $headers
-          Write-Host "Token valid: $($valid.valid)"
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($env:SONAR_TOKEN):"))
           try {
-            $orgs = Invoke-RestMethod -Uri "https://sonarcloud.io/api/organizations/search?member=true" -Headers $headers
-            Write-Host "Token is member of orgs: $(($orgs.organizations | ForEach-Object key) -join ', ')"
+            Invoke-RestMethod -Method Post -Uri "https://sonarcloud.io/api/autoscan/activation?enable=false&projectKey=williajm_eq2_lfg" -Headers @{ Authorization = "Basic $auth" } | Out-Null
+            Write-Host "Automatic analysis disabled."
           } catch {
-            Write-Host "Could not list orgs: $($_.Exception.Message)"
-          }
-
-          try {
-            Invoke-RestMethod -Method Post -Uri "https://sonarcloud.io/api/projects/create?organization=williajm&project=williajm_eq2_lfg&name=eq2_lfg" -Headers $headers | Out-Null
-            Write-Host "Project created."
-          } catch {
-            $detail = ""
-            if ($_.ErrorDetails) { $detail = $_.ErrorDetails.Message }
-            Write-Host "Project create failed/skipped: $($_.Exception.Message) $detail"
+            Write-Host "Autoscan toggle skipped: $($_.Exception.Message)"
           }
 
       - name: Build and analyze
@@ -81,6 +63,6 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io"
+          dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm-1" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io"
           dotnet build Eq2Lfg.sln --configuration Release
           dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
