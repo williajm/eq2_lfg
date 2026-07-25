@@ -6,9 +6,12 @@ A Windows system-tray application (WPF, .NET 8) that continuously tails the acti
 EverQuest II chat log and alerts the user when a group advertises needing a
 role/class/level that one of the user's enabled characters can fill.
 
-Example: the LFG channel shows `Hyldor tells LFG (3), "NEED TANK 4 DPS CMM"` —
+Example: the LFG channel shows `Brakor tells LFG (3), "NEED TANK 4 DPS CMM"` —
 the app recognises "CMM" (Castle Mistmoore), sees the group needs DPS, and alerts
 that **Nobwick lvl 62 Conjuror** is a good match.
+
+All player names in examples throughout this project's documentation, code, and
+tests are fictional; real player names from live logs must not be committed.
 
 ## Data sources
 
@@ -34,7 +37,7 @@ that **Nobwick lvl 62 Conjuror** is a good match.
   The user usually runs one client; the most recently written log file
   identifies both the file to tail and the currently played character.
 - Log lines look like:
-  `(1784976352)[Sat Jul 25 11:45:52 2026] \aPC -1 Hyldor:Hyldor\/a tells LFG (3), "NEED TANK 4 DPS CMM "`
+  `(1784976352)[Sat Jul 25 11:45:52 2026] \aPC -1 Brakor:Brakor\/a tells LFG (3), "NEED TANK 4 DPS CMM "`
 
 ## Matching
 
@@ -43,7 +46,7 @@ that **Nobwick lvl 62 Conjuror** is a good match.
 - **Group ads** (a group looking for members, e.g. `need tank 2 dps cmm`) are
   the alertable events.
 - **Individual player posts** (`52 Warlock LF exp group`) are shown in the
-  in-app traffic list for context but never trigger alerts.
+  in-app traffic list for context but never trigger alerts on their own.
 - Sales / powerlevel-service spam (`WTS powerleveling 1-70 ...`) is filtered out.
 
 ### Intelligence
@@ -64,6 +67,25 @@ that **Nobwick lvl 62 Conjuror** is a good match.
   1. the ad asks for the character's class explicitly, or its role; and
   2. the character's level fits the ad's stated level or the zone's level band
      (tolerance configurable).
+
+### Group opportunities (from player posts)
+
+Besides matching existing group ads, the app watches the stream of individual
+player-LFG posts for the makings of a *new* group:
+
+- Recent player posts (within a configurable window, default 30 min; latest post
+  per advertiser) are clustered by level compatibility (levels within a
+  configurable spread, default 10; posts with no stated level are treated as
+  compatible with any range).
+- When at least **N players** (default 3) in a compatible level range together
+  cover at least **2 archetypes** (tank / healer / DPS / support), the app
+  raises a group-opportunity alert, e.g.:
+  > Potential group: 3 players LFG around 45–52 — healer (Vex), DPS (Dorn, Sella)
+- The user's own enabled characters count toward the archetype/level mix, so
+  "2 compatible players + one of my characters completes tank/healer/dps" also
+  qualifies and is shown as such.
+- Thresholds (window, spread, min players, min archetypes) configurable in
+  settings; the same per-cluster cooldown rules apply as for group ads.
 
 ### Character selection
 - Availability is configured as a three-level hierarchy so entire branches can
@@ -97,7 +119,7 @@ that **Nobwick lvl 62 Conjuror** is a good match.
 When the app window is open, each match row must show **which of the user's
 characters matched and why**, in the form:
 
-> **Bramwick (lvl 59 Warden)** matches `Hyldor: "need healer CMM"` — healer, Castle Mistmoore 60–70
+> **Bramwick (lvl 59 Warden)** matches `Brakor: "need healer CMM"` — healer, Castle Mistmoore 60–70
 
 i.e. character name, level, class, the matched ad (advertiser + message), and
 the reason for the match (role/class hit, zone/level fit). If several enabled
