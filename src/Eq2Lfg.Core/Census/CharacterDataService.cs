@@ -20,6 +20,9 @@ public sealed class CharacterDataService(CensusClient censusClient, string cache
         int? TradeskillLevel,
         DateTimeOffset RefreshedUtc);
 
+    /// <summary>Pause between Census requests — rapid sequential queries get rate-limited.</summary>
+    private static readonly TimeSpan RequestSpacing = TimeSpan.FromMilliseconds(500);
+
     /// <summary>
     /// Populates <paramref name="characters"/> in place. Returns the number of characters
     /// successfully refreshed from Census (0 means fully offline / cache-only).
@@ -31,14 +34,30 @@ public sealed class CharacterDataService(CensusClient censusClient, string cache
     {
         var cache = LoadCache();
         var refreshed = 0;
+        var first = true;
 
         foreach (var character in characters)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (!first)
+            {
+                await Task.Delay(RequestSpacing, cancellationToken).ConfigureAwait(false);
+            }
+
+            first = false;
             var info = await censusClient
                 .GetCharacterAsync(character.Name, character.Server, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (info is null)
+            {
+                // One retry after a longer pause; transient throttling is common.
+                await Task.Delay(RequestSpacing * 3, cancellationToken).ConfigureAwait(false);
+                info = await censusClient
+                    .GetCharacterAsync(character.Name, character.Server, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             if (info?.Class is not null)
             {

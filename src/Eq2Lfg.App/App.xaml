@@ -1,9 +1,81 @@
-﻿<Application x:Class="Eq2Lfg.App.App"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Eq2Lfg.App"
-             StartupUri="MainWindow.xaml">
-    <Application.Resources>
-         
-    </Application.Resources>
+<Application
+  x:Class="Eq2Lfg.App.App"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+  xmlns:local="clr-namespace:Eq2Lfg.App"
+  ShutdownMode="OnExplicitShutdown">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ui:ThemesDictionary Theme="Dark" />
+        <ui:ControlsDictionary />
+      </ResourceDictionary.MergedDictionaries>
+
+      <local:RoleToBrushConverter x:Key="RoleToBrush" />
+      <local:KindToBrushConverter x:Key="KindToBrush" />
+      <local:IndexEqualsConverter x:Key="IndexEquals" />
+      <local:IndexToVisibilityConverter x:Key="IndexToVisibility" />
+      <local:StringToVisibilityConverter x:Key="StringToVisibility" />
+      <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+      <SolidColorBrush x:Key="CardBackground" Color="#22FFFFFF" />
+      <SolidColorBrush x:Key="CardBorder" Color="#33FFFFFF" />
+      <SolidColorBrush x:Key="SecondaryText" Color="#99FFFFFF" />
+
+      <Style x:Key="Card" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource CardBackground}" />
+        <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+      </Style>
+
+      <Style x:Key="Chip" TargetType="Border">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="8,2" />
+        <Setter Property="Margin" Value="6,0,0,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+      </Style>
+
+      <Style x:Key="ChipText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="#1A1A1A" />
+      </Style>
+
+      <Style x:Key="SectionHeader" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,18,0,8" />
+      </Style>
+
+      <Style x:Key="NavButton" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="RadioButton">
+              <Border
+                x:Name="Bg"
+                Margin="6,3"
+                Padding="12,8"
+                Background="Transparent"
+                CornerRadius="6">
+                <ContentPresenter VerticalAlignment="Center" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                  <Setter TargetName="Bg" Property="Background" Value="#33FFFFFF" />
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="Bg" Property="Background" Value="#22FFFFFF" />
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+    </ResourceDictionary>
+  </Application.Resources>
 </Application>
