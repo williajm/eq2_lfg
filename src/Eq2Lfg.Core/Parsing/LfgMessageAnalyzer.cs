@@ -106,36 +106,17 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         var statedLevels = ExtractLevels(text, exceptValue: mentorFloor);
 
         var isExpGroup = ExpGroupRegex().IsMatch(text);
-        var looksLikePlayerLfg = PlayerLfgRegex().IsMatch(text) || SelfOfferRegex().IsMatch(text);
-        var looksLikeGroupAd = !SelfOfferRegex().IsMatch(text)
-            && (GroupAdRegex().IsMatch(text)
-                || (!looksLikePlayerLfg
-                    && BareLfRegex().IsMatch(text)
-                    && (roles.Count > 0 || classes.Count > 0 || isExpGroup))
-                || (!looksLikePlayerLfg
-                    && AnyForRegex().IsMatch(text)
-                    && (roles.Count > 0 || classes.Count > 0 || zone is not null)));
-
-        // "mystic,fury,wiz LFG" or "52 warlock LFG": the speaker is offering, not recruiting.
-        // "need tank cmm" wins over "lf" phrasing when both appear ("need 2 more, we're LFG" is a group).
-        PostKind kind;
-        if (looksLikeGroupAd)
-        {
-            kind = PostKind.GroupAd;
-        }
-        else if (looksLikePlayerLfg)
-        {
-            kind = PostKind.PlayerLfg;
-        }
-        else
-        {
-            return new LfgPost { Kind = PostKind.NotLfg, Message = message };
-        }
+        var kind = Classify(text, roles, classes, hasZone: zone is not null, isExpGroup);
 
         // A "group ad" that names no role, class, or zone is noise ("looking for my
         // corpse") — unless it's an exp group, which is worth surfacing on its own.
         if (kind == PostKind.GroupAd && roles.Count == 0 && classes.Count == 0 && zone is null
             && !isExpGroup)
+        {
+            kind = PostKind.NotLfg;
+        }
+
+        if (kind == PostKind.NotLfg)
         {
             return new LfgPost { Kind = PostKind.NotLfg, Message = message };
         }
@@ -153,6 +134,30 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             WillMentor = mentorMatch.Success,
             MentorFloor = mentorFloor,
         };
+    }
+
+    // "mystic,fury,wiz LFG" or "52 warlock LFG": the speaker is offering, not recruiting.
+    // "need tank cmm" wins over "lf" phrasing when both appear ("need 2 more, we're LFG" is a group).
+    private static PostKind Classify(
+        string text, List<Role> roles, List<string> classes, bool hasZone, bool isExpGroup)
+    {
+        var wantsSomeone = roles.Count > 0 || classes.Count > 0;
+        var looksLikePlayerLfg = PlayerLfgRegex().IsMatch(text) || SelfOfferRegex().IsMatch(text);
+        var looksLikeGroupAd = !SelfOfferRegex().IsMatch(text)
+            && (GroupAdRegex().IsMatch(text)
+                || (!looksLikePlayerLfg
+                    && BareLfRegex().IsMatch(text)
+                    && (wantsSomeone || isExpGroup))
+                || (!looksLikePlayerLfg
+                    && AnyForRegex().IsMatch(text)
+                    && (wantsSomeone || hasZone)));
+
+        if (looksLikeGroupAd)
+        {
+            return PostKind.GroupAd;
+        }
+
+        return looksLikePlayerLfg ? PostKind.PlayerLfg : PostKind.NotLfg;
     }
 
     private static List<Role> ExtractRoles(string text)
@@ -184,11 +189,10 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     private static List<string> ExtractClasses(string text)
     {
         var classes = new List<string>();
-        foreach (Match word in WordRegex().Matches(text))
+        foreach (var token in WordRegex().Matches(text).Select(word => word.Value))
         {
             // "clerics" and "sorcs" read as the singular; short tokens stay as-is
             // so abbreviations like "dps" or "sos" are never mangled.
-            var token = word.Value;
             var singular = token.Length > 3 && token.EndsWith('s') ? token[..^1] : token;
 
             var cls = ClassCatalog.ResolveClass(token) ?? ClassCatalog.ResolveClass(singular);
