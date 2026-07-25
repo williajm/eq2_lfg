@@ -82,9 +82,10 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
 
         var ownCharacters = enabledCharacters.Where(c => c.Class is not null).ToList();
 
-        // Candidate level windows: one anchored at each stated level, plus the
-        // "no level information" cluster. Posts without a stated level fit any window;
-        // multiboxer posts advertising several characters fit via any of their levels.
+        // Candidate level windows: one anchored at each stated level, plus a final
+        // null anchor for the cluster of posts that state no level at all. Posts
+        // without a stated level fit any window, and multiboxer posts advertising
+        // several characters fit via any of their levels.
         var anchors = posts
             .SelectMany(p => p.StatedLevels)
             .Distinct()
