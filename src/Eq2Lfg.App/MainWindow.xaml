@@ -329,7 +329,24 @@
           </Grid>
 
           <TextBlock Style="{StaticResource SectionHeader}" Text="EQ2 directory" />
-          <TextBox Text="{Binding Eq2Directory, UpdateSourceTrigger=LostFocus}" />
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" Text="{Binding Eq2Directory, UpdateSourceTrigger=LostFocus}" />
+            <Button
+              Grid.Column="1"
+              Margin="8,0,0,0"
+              Command="{Binding DetectEq2DirectoryCommand}"
+              Content="Detect" />
+          </Grid>
+          <TextBlock
+            Margin="0,4,0,0"
+            Foreground="{StaticResource SecondaryText}"
+            Text="{Binding DetectResult}"
+            TextWrapping="Wrap"
+            Visibility="{Binding DetectResult, Converter={StaticResource StringToVisibility}}" />
 
           <TextBlock Style="{StaticResource SectionHeader}" Text="Census service ID (optional)" />
           <TextBlock

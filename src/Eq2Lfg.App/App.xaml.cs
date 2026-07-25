@@ -17,6 +17,13 @@ public partial class App : Application
         base.OnStartup(e);
 
         var settings = AppSettings.Load(AppSettings.DefaultPath);
+        if (!Core.Discovery.Eq2InstallLocator.IsValidEq2Directory(settings.Eq2Directory)
+            && Services.Eq2InstallDetector.Detect() is { } detected)
+        {
+            settings.Eq2Directory = detected;
+            settings.Save(AppSettings.DefaultPath);
+        }
+
         viewModel = new MainViewModel(settings);
 
         mainWindow = new MainWindow { DataContext = viewModel };

@@ -30,7 +30,10 @@ public sealed class ZoneTable
 
     public static ZoneTable CreateSeeded() => new(SeedEntries());
 
-    /// <summary>Loads the table from disk, writing the seed file first if none exists.</summary>
+    /// <summary>
+    /// Loads the table from disk, writing the seed file first if none exists. Seed zones
+    /// added in newer app versions are merged in (by name) without touching user edits.
+    /// </summary>
     public static ZoneTable LoadOrSeed(string filePath)
     {
         if (!File.Exists(filePath))
@@ -45,7 +48,15 @@ public sealed class ZoneTable
             var entries = JsonSerializer.Deserialize<List<ZoneEntry>>(File.ReadAllText(filePath));
             if (entries is { Count: > 0 })
             {
-                return new ZoneTable(entries);
+                var known = entries.Select(e => e.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var additions = SeedEntries().Where(s => !known.Contains(s.Name)).ToList();
+                var table = new ZoneTable(entries.Concat(additions));
+                if (additions.Count > 0)
+                {
+                    table.Save(filePath);
+                }
+
+                return table;
             }
         }
         catch (Exception ex) when (ex is IOException or JsonException)
@@ -144,6 +155,7 @@ public sealed class ZoneTable
         new() { Name = "Mistmoore Catacombs", MinLevel = 55, MaxLevel = 65, Abbreviations = ["MMC", "Catacombs"] },
         new() { Name = "Castle Mistmoore", MinLevel = 60, MaxLevel = 70, Abbreviations = ["CMM", "Mistmoore", "Mistmoor"] },
         new() { Name = "The Estate of Unrest", MinLevel = 65, MaxLevel = 70, Abbreviations = ["Unrest"] },
+        new() { Name = "Shard of Fear", MinLevel = 65, MaxLevel = 70, Abbreviations = ["SoF"] },
         new() { Name = "Crypt of Valdoon", MinLevel = 65, MaxLevel = 70, Abbreviations = ["Valdoon"] },
         new() { Name = "Klak'Anon", MinLevel = 60, MaxLevel = 70, Abbreviations = ["Klak"] },
         new() { Name = "Obelisk of Blight", MinLevel = 60, MaxLevel = 70, Abbreviations = ["OoB", "Blight"] },

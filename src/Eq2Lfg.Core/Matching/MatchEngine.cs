@@ -45,6 +45,8 @@ public sealed class MatchEngine(MatchOptions options)
 
             var classWanted = post.Classes.Contains(character.Class, StringComparer.OrdinalIgnoreCase);
             var roleWanted = post.WantedRoles.Contains(character.Role.Value);
+            // "LFM catacombs" names no role or class: anyone who fits the level is welcome.
+            var anyoneWanted = post.WantedRoles.Count == 0 && post.Classes.Count == 0;
             if (classWanted)
             {
                 reasons.Add($"{character.Class} wanted");
@@ -52,6 +54,10 @@ public sealed class MatchEngine(MatchOptions options)
             else if (roleWanted)
             {
                 reasons.Add(character.Role.Value.ToString().ToLowerInvariant());
+            }
+            else if (anyoneWanted)
+            {
+                reasons.Add("any role welcome");
             }
             else
             {

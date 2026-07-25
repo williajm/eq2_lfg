@@ -13,8 +13,14 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(wts|wtb|selling|buying|krono|plat\b|powerlevel\w*|\bPL\b|carry|carries)\b", RegexOptions.IgnoreCase)]
     private static partial Regex SpamRegex();
 
-    [GeneratedRegex(@"\b(need|needs|neeed|lfm|lf\s*\d+\s*m(?:ore)?|looking\s+for|forming|making\s+group|starting)\b", RegexOptions.IgnoreCase)]
+    // "need tank", "LFM", "LF2M", "room for 3m", "one spot in CT", "forming group"
+    [GeneratedRegex(@"\b(need|needs|neeed|lfm|lf\s*\d+\s*m(?:ore)?|looking\s+for|forming|making\s+group|starting|room\s+for|spots?\s+(?:in|open|left)|open\s+spots?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex GroupAdRegex();
+
+    // Bare "LF <role/class>" ("LF healer and tank MMC", "Klak LF chanter/bard") —
+    // a group ad when combined with a role or class mention.
+    [GeneratedRegex(@"\blf\b", RegexOptions.IgnoreCase)]
+    private static partial Regex BareLfRegex();
 
     [GeneratedRegex(@"\blfg\b|\blf\b.*\bgroup\b|\blfw\b", RegexOptions.IgnoreCase)]
     private static partial Regex PlayerLfgRegex();
@@ -73,8 +79,12 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             : (int?)null;
         var statedLevels = ExtractLevels(text, exceptValue: mentorFloor);
 
-        var looksLikeGroupAd = GroupAdRegex().IsMatch(text) && !SelfOfferRegex().IsMatch(text);
         var looksLikePlayerLfg = PlayerLfgRegex().IsMatch(text) || SelfOfferRegex().IsMatch(text);
+        var looksLikeGroupAd = !SelfOfferRegex().IsMatch(text)
+            && (GroupAdRegex().IsMatch(text)
+                || (!looksLikePlayerLfg
+                    && BareLfRegex().IsMatch(text)
+                    && (roles.Count > 0 || classes.Count > 0)));
 
         // "mystic,fury,wiz LFG" or "52 warlock LFG": the speaker is offering, not recruiting.
         // "need tank cmm" wins over "lf" phrasing when both appear ("need 2 more, we're LFG" is a group).

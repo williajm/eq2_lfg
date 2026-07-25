@@ -65,6 +65,7 @@ public class CooldownAndZoneTests
 
             seeded.Replace(
             [
+                .. seeded.Entries,
                 new ZoneEntry
                 {
                     Name = "Test Zone", MinLevel = 1, MaxLevel = 10, Abbreviations = ["TZ"],
@@ -73,7 +74,7 @@ public class CooldownAndZoneTests
             seeded.Save(path);
 
             var reloaded = ZoneTable.LoadOrSeed(path);
-            Assert.Null(reloaded.Resolve("cmm"));
+            Assert.NotNull(reloaded.Resolve("cmm"));
             Assert.Equal("Test Zone", reloaded.Resolve("tz")!.Name);
         }
         finally

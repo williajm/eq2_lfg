@@ -10,7 +10,8 @@ namespace Eq2Lfg.Core.Config;
 /// </summary>
 public sealed class AppSettings
 {
-    public string Eq2Directory { get; set; } = @"E:\games\eq2";
+    /// <summary>Empty by default so the app auto-detects the install on first run.</summary>
+    public string Eq2Directory { get; set; } = "";
 
     public bool InAppAlerts { get; set; } = true;
     public bool ToastAlerts { get; set; } = true;

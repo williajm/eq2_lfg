@@ -32,7 +32,7 @@ public static class ClassCatalog
         new("Ranger", Role.Dps, ["ranger", "rng"]),
         new("Assassin", Role.Dps, ["sin", "assassin", "assa", "asn"]),
         new("Beastlord", Role.Dps, ["beastlord", "bl"]),
-        new("Illusionist", Role.Support, ["ilu", "illu", "illy", "illus", "illusionist"]),
+        new("Illusionist", Role.Support, ["ilu", "ill", "illu", "illy", "illus", "illusionist"]),
         new("Coercer", Role.Support, ["coercer", "coerc"]),
         new("Dirge", Role.Support, ["dirge"]),
         new("Troubador", Role.Support, ["troub", "troubador", "troubadour", "trub"]),

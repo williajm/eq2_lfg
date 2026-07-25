@@ -265,6 +265,23 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
+    [ObservableProperty]
+    private string detectResult = "";
+
+    [RelayCommand]
+    private void DetectEq2Directory()
+    {
+        var detected = Eq2InstallDetector.Detect();
+        if (detected is null)
+        {
+            DetectResult = "No EQ2 install found (checked running game, registry, Steam, common paths).";
+            return;
+        }
+
+        DetectResult = $"Found: {detected}";
+        Eq2Directory = detected;
+    }
+
     [RelayCommand]
     private void AddZone() =>
         ZoneRows.Add(new ZoneRow { Name = "New Zone", Abbreviations = "NZ", MinLevel = 1, MaxLevel = 70 });
