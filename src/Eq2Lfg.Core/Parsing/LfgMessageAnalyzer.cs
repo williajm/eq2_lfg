@@ -13,10 +13,12 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(wts|wtb|selling|buying|krono|plat\b|powerlevel\w*|\bPL\b|carry|carries)\b", RegexOptions.IgnoreCase)]
     private static partial Regex SpamRegex();
 
-    // "need tank", "LFM", "LF2M", "room for 3m", "one spot in CT", "forming group",
-    // "seeking zerker/monk", "CMM 1 spot chanter/bard", "has 1 spot for anything".
+    // "need tank", "LFM", "LF2M", "CT LF 1", "room for 3m", "space for 1", "one spot
+    // in CT", "1 slot open", "last spot", "4/6 pst", "forming group", "seeking
+    // zerker/monk", "CMM 1 spot chanter/bard", "has 1 spot for anything".
     // "seeking (a) group" is excluded — that's a player looking, not a group asking.
-    [GeneratedRegex(@"\b(need|needs|neeed|lfm|lf\s*\d+\s*m(?:ore)?|looking\s+for|seek(?:ing|s)?\b(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b)|forming|making\s+group|starting|room\s+for|\d+\s*spots?|spots?\s+(?:in|open|left|for)|open\s+spots?)\b", RegexOptions.IgnoreCase)]
+    // "lf 1" allows a single digit only, so "lf 50+ group" stays a player post.
+    [GeneratedRegex(@"\b(need|needs|neeed|lfm|lf\s*\d(?![\d+])\s*(?:m(?:ore)?)?|looking\s+for|seek(?:ing|s)?\b(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b)|forming|making\s+group|starting|(?:wanna|want\s+to)\s+start|(?:room|space)\s+for|\d+\s*(?:spots?|slots?)|(?:spots?|slots?)\s+(?:in|open|left|for)|open\s+(?:spots?|slots?)|last\s+(?:spot|slot)|[0-5]\s*/\s*6)\b", RegexOptions.IgnoreCase)]
     private static partial Regex GroupAdRegex();
 
     // Bare "LF <role/class>" ("LF healer and tank MMC", "Klak LF chanter/bard") —
@@ -24,23 +26,26 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\blf\b", RegexOptions.IgnoreCase)]
     private static partial Regex BareLfRegex();
 
-    // "any heals/dps for WC?", "anyone for FG?", "Any bard reps for PoA?" —
-    // a group ad when the same clause also names a role, class, or zone.
-    [GeneratedRegex(@"(?<clause>\bany(?:one|1)?\b[^.!?;]*?\bfor\b[^.!?;]*)", RegexOptions.IgnoreCase)]
+    // "any heals/dps for WC?", "anyone for FG?", "Any bard reps for PoA?",
+    // "any tanks wanna come to Sol Eye?" — a group ad when the same clause also
+    // names a role, class, or zone.
+    [GeneratedRegex(@"(?<clause>\bany(?:one|1|body)?\b[^.!?;]*?\b(?:for|wanna\s+(?:come|join)|want\s+to\s+(?:come|join))\b[^.!?;]*)", RegexOptions.IgnoreCase)]
     private static partial Regex AnyForRegex();
 
     // "50+ exp group LF3M", "Giants exp group LFM!" — an experience group is a
     // group by definition, even when no role, class, or known zone is named.
-    [GeneratedRegex(@"\b(?:exp|xp)\s+gr(?:ou)?p\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?:exp|xp)\s+gr(?:ou)?ps?\b", RegexOptions.IgnoreCase)]
     private static partial Regex ExpGroupRegex();
 
-    [GeneratedRegex(@"\blfg\b|\blf\b.*\bgroup\b|\blfw\b|\bseek(?:ing|s)?\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b", RegexOptions.IgnoreCase)]
+    // "groups going" covers players asking around: "any RE/CT xp groups going?".
+    [GeneratedRegex(@"\blfg\b|\blf\b.*\bgr(?:ou)?p\b|\blfw\b|\bseek(?:ing|s)?\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b|\bgr(?:ou)?ps?\s+going\b", RegexOptions.IgnoreCase)]
     private static partial Regex PlayerLfgRegex();
 
     // "anyone need a 70 Inq?" and "Any RoV groups need a healer?" are players
     // offering themselves, despite the word "need". Zone names between "any" and
     // "groups" may run to a few words ("Any Fallen Gate groups need a healer?").
-    [GeneratedRegex(@"\b(?:anyone|any1|any\s+(?:\S+\s+){0,3}(?:grp|group)s?)\s+(?:need|want)\b", RegexOptions.IgnoreCase)]
+    // "want to" is excluded: "anybody want to start CT?" is forming, not offering.
+    [GeneratedRegex(@"\b(?:anyone|any1|anybody|any\s+(?:\S+\s+){0,3}(?:grp|group)s?)\s+(?:need|want(?!s?\s+to\b))\b", RegexOptions.IgnoreCase)]
     private static partial Regex SelfOfferRegex();
 
     // Guild recruitment: "<Lucid Dreams> Seeking sk/monk ... Full Time Position Raiders",
@@ -55,9 +60,10 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(?:already\s+)?(?:have|has|got|found)\b(?![^,;.!|]*\b(?:spots?|room)\b)[^,;.!|]*", RegexOptions.IgnoreCase)]
     private static partial Regex HaveClauseRegex();
 
-    // "LF2M", "need 2 more", "room for 3m", "2 spots", "one spot left": how many
-    // places the group has open. Single digits only — "12 spots" is not a group.
-    [GeneratedRegex(@"\b(?:lf\s*(?<n>\d)\s*m(?:ore)?\b|need\w*\s+(?<n>\d|one|two|three|four|five)\s+more\b|room\s+for\s+(?<n>\d|one|two|three|four|five)\s*m?(?:ore)?\b|(?<n>\d|one|two|three|four|five)\s+(?:more\s+|open\s+)?spots?\b)", RegexOptions.IgnoreCase)]
+    // "LF2M", "LF 1", "need 2 more", "room for 3m", "2 spots", "one slot left",
+    // "last spot", "4/6": how many places the group has open. Single digits only —
+    // "12 spots" is not a group. "4/6" counts filled seats, so open = 6 - filled.
+    [GeneratedRegex(@"\b(?:lf\s*(?<n>\d)(?![\d+])\s*(?:m(?:ore)?)?\b|need\w*\s+(?<n>\d|one|two|three|four|five)\s+more\b|(?:room|space)\s+for\s+(?<n>\d|one|two|three|four|five)\s*m?(?:ore)?\b|(?<n>\d|one|two|three|four|five)\s+(?:more\s+|open\s+)?(?:spots?|slots?)\b|(?<n>last)\s+(?:spot|slot)\b|(?<filled>[0-5])\s*/\s*6\b)", RegexOptions.IgnoreCase)]
     private static partial Regex SpotsLeftRegex();
 
     // "WILL MENTOR 40+" / "can mentor" / "mentor down"
@@ -70,17 +76,17 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(tanks?|mt|ot|fighters?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex TankRegex();
 
-    [GeneratedRegex(@"\b(healer?s?|heals|healz|priests?)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(heal(?:er|z)?s?|priests?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex HealerRegex();
 
-    [GeneratedRegex(@"\b(dps|dd|damage)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(dps|dd|deeps|damage)\b", RegexOptions.IgnoreCase)]
     private static partial Regex DpsRegex();
 
     // "LF tank +dps/non leather": a healer who isn't a druid, i.e. a cleric or shaman.
     [GeneratedRegex(@"\bnon[\s-]*leather\b", RegexOptions.IgnoreCase)]
     private static partial Regex NonLeatherRegex();
 
-    [GeneratedRegex(@"\b(support|utility|bard|chanter|enchanter|cc)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(support|util(?:ity)?|bard|chanter|enchanter|cc)\b", RegexOptions.IgnoreCase)]
     private static partial Regex SupportRegex();
 
     [GeneratedRegex(@"[a-zA-Z']+", RegexOptions.IgnoreCase)]
@@ -261,15 +267,18 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             return null;
         }
 
-        var value = match.Groups["n"].Value.ToLowerInvariant() switch
-        {
-            "one" => 1,
-            "two" => 2,
-            "three" => 3,
-            "four" => 4,
-            "five" => 5,
-            var digit => int.Parse(digit),
-        };
+        // "4/6" states filled seats; the rest state open ones directly.
+        var value = match.Groups["filled"].Success
+            ? 6 - int.Parse(match.Groups["filled"].Value)
+            : match.Groups["n"].Value.ToLowerInvariant() switch
+            {
+                "one" or "last" => 1,
+                "two" => 2,
+                "three" => 3,
+                "four" => 4,
+                "five" => 5,
+                var digit => int.Parse(digit),
+            };
 
         // The advertiser already fills a slot, so a six-player group can have at
         // most five open; anything larger is a raid callout or a typo.
