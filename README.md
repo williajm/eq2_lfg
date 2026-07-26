@@ -6,7 +6,7 @@ can fill — or when enough individual LFG players are around to start a new gro
 
 See [REQUIREMENTS.md](REQUIREMENTS.md) for the full feature set.
 
-![EQ2 LFG Monitor showing a group opportunity: two players LFG with archetype badges, and a suggested own character to complete the group](docs/app.png)
+![EQ2 LFG Monitor showing group opportunities: clusters of LFG players with archetype badges, and a suggested own character to complete each group](docs/app.png)
 
 ## How it works
 
