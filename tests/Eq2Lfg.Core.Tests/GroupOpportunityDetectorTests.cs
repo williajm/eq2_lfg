@@ -138,6 +138,73 @@ public class GroupOpportunityDetectorTests
     }
 
     [Fact]
+    public void Cluster_is_capped_at_the_eq2_group_size()
+    {
+        var detector = new GroupOpportunityDetector();
+        detector.Observe(Post("45 fury LFG", "Vex"));
+        detector.Observe(Post("46 wizard LFG", "Dorn", 1));
+        detector.Observe(Post("47 guardian lf group", "Sella", 2));
+        detector.Observe(Post("48 warlock LFG", "Mibs", 3));
+        detector.Observe(Post("49 assassin LFG", "Kord", 4));
+        detector.Observe(Post("50 ranger lf group", "Yara", 5));
+        detector.Observe(Post("51 swashbuckler LFG", "Toln", 6));
+
+        var opportunity = detector.Evaluate(T0.AddMinutes(8), []);
+
+        Assert.NotNull(opportunity);
+        Assert.Equal(6, opportunity.Posts.Count);
+    }
+
+    [Fact]
+    public void Own_character_reserves_a_slot_in_a_full_cluster()
+    {
+        var detector = new GroupOpportunityDetector();
+        detector.Observe(Post("45 fury LFG", "Vex"));
+        detector.Observe(Post("46 wizard LFG", "Dorn", 1));
+        detector.Observe(Post("47 guardian lf group", "Sella", 2));
+        detector.Observe(Post("48 warlock LFG", "Mibs", 3));
+        detector.Observe(Post("49 assassin LFG", "Kord", 4));
+        detector.Observe(Post("50 ranger lf group", "Yara", 5));
+
+        var monk = new GameCharacter
+        {
+            Account = "a",
+            Server = "Wuoshi",
+            Name = "Bramfist",
+            Class = "Monk",
+            Level = 48,
+        };
+
+        var opportunity = detector.Evaluate(T0.AddMinutes(8), [monk]);
+
+        Assert.NotNull(opportunity);
+        Assert.Equal(5, opportunity.Posts.Count);
+        Assert.Single(opportunity.OwnCandidates);
+    }
+
+    [Fact]
+    public void Trimming_keeps_archetype_coverage_over_recency()
+    {
+        var detector = new GroupOpportunityDetector();
+        detector.Observe(Post("45 fury LFG", "Heala"));
+        detector.Observe(Post("46 wizard LFG", "Dorn", 1));
+        detector.Observe(Post("47 warlock LFG", "Mibs", 2));
+        detector.Observe(Post("48 assassin LFG", "Kord", 3));
+        detector.Observe(Post("49 ranger lf group", "Yara", 4));
+        detector.Observe(Post("50 swashbuckler LFG", "Toln", 5));
+        detector.Observe(Post("51 brigand LFG", "Zex", 6));
+
+        var opportunity = detector.Evaluate(T0.AddMinutes(8), []);
+
+        // The oldest post is the only healer; dropping it would leave a single
+        // archetype, so it must survive the trim ahead of a newer DPS post.
+        Assert.NotNull(opportunity);
+        Assert.Equal(6, opportunity.Posts.Count);
+        Assert.Contains(opportunity.Posts, p => p.Advertiser == "Heala");
+        Assert.Contains(Role.Healer, opportunity.Archetypes);
+    }
+
+    [Fact]
     public void Repost_by_same_advertiser_replaces_rather_than_duplicates()
     {
         var detector = new GroupOpportunityDetector();

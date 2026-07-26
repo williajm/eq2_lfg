@@ -101,6 +101,13 @@ player-LFG posts for the makings of a *new* group:
 - The user's own enabled characters count toward the archetype/level mix, so
   "2 compatible players + one of my characters completes tank/healer/dps" also
   qualifies and is shown as such.
+- An EQ2 group holds at most **6 players**, so clusters never exceed that:
+  when one of the user's characters fits, at most 5 posters are suggested.
+  Oversized clusters are trimmed newest-first, but a post that alone covers an
+  archetype is kept over a newer redundant one.
+- Group ads stating their open places (`LF2M`, `need 2 more`, `1 spot left`)
+  get that count extracted (`SpotsLeft`, shown in the Traffic view); values
+  above 5 are ignored, since a group of at least one can need at most 5 more.
 - Thresholds (window, spread, min players, min archetypes) configurable in
   settings; the same per-cluster cooldown rules apply as for group ads.
 - Each opportunity offers a **"Copy invite message"** action: a ready-to-paste

@@ -16,6 +16,9 @@ public sealed record GroupOpportunityOptions
     /// <summary>Minimum distinct archetypes (tank/healer/dps/support) covered.</summary>
     public int MinArchetypes { get; init; } = 2;
 
+    /// <summary>Most people a cluster may hold — an EQ2 group caps at six.</summary>
+    public int MaxGroupSize { get; init; } = 6;
+
     /// <summary>Higher-level posters/characters count as compatible — they can mentor down.</summary>
     public bool AllowMentorDown { get; init; } = true;
 }
@@ -116,13 +119,24 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
             return null;
         }
 
-        var levels = members
-            .SelectMany(p => p.StatedLevels.Where(l => InWindow(l, anchor)))
-            .ToList();
-        int? min = levels.Count > 0 ? levels.Min() : null;
-        int? max = levels.Count > 0 ? levels.Max() : null;
+        // An EQ2 group holds at most MaxGroupSize players, one of whom may be the
+        // user. Trimming changes the cluster's level bounds, which can change which
+        // own characters fit, so recompute both until the cluster is legal.
+        int? min, max;
+        List<GameCharacter> own;
+        while (true)
+        {
+            (min, max) = LevelBounds(members, anchor);
+            own = ownCharacters.Where(c => CharacterFits(c, min, max)).ToList();
+            var cap = options.MaxGroupSize - Math.Min(1, own.Count);
+            if (members.Count <= cap)
+            {
+                break;
+            }
 
-        var own = ownCharacters.Where(c => CharacterFits(c, min, max)).ToList();
+            members = TrimToCap(members, cap);
+        }
+
         var archetypes = CollectArchetypes(members, own);
 
         var people = members.Count + Math.Min(1, own.Count);
@@ -139,6 +153,52 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
             MaxLevel = max,
             Archetypes = archetypes,
         };
+    }
+
+    private (int? Min, int? Max) LevelBounds(List<LfgPost> members, int? anchor)
+    {
+        var levels = members
+            .SelectMany(p => p.StatedLevels.Where(l => InWindow(l, anchor)))
+            .ToList();
+        return levels.Count > 0 ? (levels.Min(), levels.Max()) : (null, null);
+    }
+
+    // Newest posts win, except that a post covering an archetype nothing newer
+    // covers is kept — the lone healer must survive a flood of fresher DPS posts.
+    private static List<LfgPost> TrimToCap(List<LfgPost> members, int cap)
+    {
+        var byRecency = members.OrderByDescending(p => p.Message.Timestamp).ToList();
+        var kept = new List<LfgPost>();
+        var covered = new HashSet<Role>();
+        foreach (var post in byRecency)
+        {
+            if (kept.Count == cap)
+            {
+                break;
+            }
+
+            var roles = RolesOf(post);
+            if (roles.Count > 0 && !roles.IsSubsetOf(covered))
+            {
+                kept.Add(post);
+                covered.UnionWith(roles);
+            }
+        }
+
+        foreach (var post in byRecency)
+        {
+            if (kept.Count == cap)
+            {
+                break;
+            }
+
+            if (!kept.Contains(post))
+            {
+                kept.Add(post);
+            }
+        }
+
+        return kept.OrderByDescending(p => p.Message.Timestamp).ToList();
     }
 
     private bool InWindow(int level, int? anchor) =>
@@ -195,9 +255,13 @@ public sealed class GroupOpportunityDetector(GroupOpportunityOptions options)
     private static HashSet<Role> CollectArchetypes(
         List<LfgPost> members, List<GameCharacter> own) =>
         members
-            .SelectMany(p => p.Classes)
+            .SelectMany(RolesOf)
+            .Concat(own.Where(c => c.Role is not null).Select(c => c.Role!.Value))
+            .ToHashSet();
+
+    private static HashSet<Role> RolesOf(LfgPost post) =>
+        post.Classes
             .Select(cls => ClassCatalog.TryRoleOf(cls, out var r) ? (Role?)r : null)
-            .Concat(own.Select(c => c.Role))
             .Where(role => role is not null)
             .Select(role => role!.Value)
             .ToHashSet();

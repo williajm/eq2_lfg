@@ -66,6 +66,31 @@ public class LfgMessageAnalyzerTests
         Assert.Null(post.StatedLevel);
     }
 
+    [Theory]
+    [InlineData("LF2M CMM need heals", 2)]
+    [InlineData("need one more for CMM", 1)]
+    [InlineData("forming RoV group, room for 3m", 3)]
+    [InlineData("CMM 1 spot chanter/bard", 1)]
+    [InlineData("SoS grp has 2 open spots, need healer", 2)]
+    [InlineData("need tank cmm", null)]
+    [InlineData("LF6M CMM", null)]
+    public void Extracts_spots_left_from_group_ad(string text, int? expected)
+    {
+        var post = analyzer.Analyze(Msg(text));
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Equal(expected, post.SpotsLeft);
+    }
+
+    [Fact]
+    public void Player_posts_carry_no_spots_left()
+    {
+        var post = analyzer.Analyze(Msg("52 Warlock LF exp group"));
+
+        Assert.Equal(PostKind.PlayerLfg, post.Kind);
+        Assert.Null(post.SpotsLeft);
+    }
+
     [Fact]
     public void Extracts_class_and_level_from_player_post()
     {

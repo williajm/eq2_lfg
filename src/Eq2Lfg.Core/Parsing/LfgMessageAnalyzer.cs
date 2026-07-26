@@ -55,6 +55,11 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(?:already\s+)?(?:have|has|got|found)\b(?![^,;.!|]*\b(?:spots?|room)\b)[^,;.!|]*", RegexOptions.IgnoreCase)]
     private static partial Regex HaveClauseRegex();
 
+    // "LF2M", "need 2 more", "room for 3m", "2 spots", "one spot left": how many
+    // places the group has open. Single digits only — "12 spots" is not a group.
+    [GeneratedRegex(@"\b(?:lf\s*(?<n>\d)\s*m(?:ore)?\b|need\w*\s+(?<n>\d|one|two|three|four|five)\s+more\b|room\s+for\s+(?<n>\d|one|two|three|four|five)\s*m?(?:ore)?\b|(?<n>\d|one|two|three|four|five)\s+(?:more\s+|open\s+)?spots?\b)", RegexOptions.IgnoreCase)]
+    private static partial Regex SpotsLeftRegex();
+
     // "WILL MENTOR 40+" / "can mentor" / "mentor down"
     [GeneratedRegex(@"\bmentor\w*(?:\s+(?:down\s+)?(?:to\s+)?(\d{1,3})\s*\+?)?", RegexOptions.IgnoreCase)]
     private static partial Regex MentorRegex();
@@ -134,6 +139,7 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             ZoneMinLevel = zone?.MinLevel,
             ZoneMaxLevel = zone?.MaxLevel,
             StatedLevels = statedLevels,
+            SpotsLeft = kind == PostKind.GroupAd ? ParseSpotsLeft(text) : null,
             WillMentor = mentorMatch.Success,
             MentorFloor = mentorFloor,
         };
@@ -245,6 +251,29 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         {
             classes.Add(cls);
         }
+    }
+
+    private static int? ParseSpotsLeft(string text)
+    {
+        var match = SpotsLeftRegex().Match(text);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var value = match.Groups["n"].Value.ToLowerInvariant() switch
+        {
+            "one" => 1,
+            "two" => 2,
+            "three" => 3,
+            "four" => 4,
+            "five" => 5,
+            var digit => int.Parse(digit),
+        };
+
+        // The advertiser already fills a slot, so a six-player group can have at
+        // most five open; anything larger is a raid callout or a typo.
+        return value is >= 1 and <= 5 ? value : null;
     }
 
     private static List<int> ExtractLevels(string text, int? exceptValue = null)
