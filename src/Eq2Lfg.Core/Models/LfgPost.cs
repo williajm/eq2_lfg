@@ -44,6 +44,12 @@ public sealed record LfgPost
     /// <summary>The first level stated in the message, if any.</summary>
     public int? StatedLevel => StatedLevels.Count > 0 ? StatedLevels[0] : null;
 
+    /// <summary>
+    /// Open places the group advertised ("LF2M", "need 2 more", "1 spot left");
+    /// null when the ad doesn't say. Group ads only.
+    /// </summary>
+    public int? SpotsLeft { get; init; }
+
     /// <summary>The poster offered to mentor down ("70 fury LFG WILL MENTOR 40+").</summary>
     public bool WillMentor { get; init; }
 

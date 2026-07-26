@@ -96,6 +96,11 @@ public sealed class TrafficRow : TimedRow
             details.Add($"{post.ZoneName} {post.ZoneMinLevel}-{post.ZoneMaxLevel}");
         }
 
+        if (post.SpotsLeft is { } spots)
+        {
+            details.Add(spots == 1 ? "1 spot left" : $"{spots} spots left");
+        }
+
         return new TrafficRow
         {
             Timestamp = post.Message.Timestamp,
