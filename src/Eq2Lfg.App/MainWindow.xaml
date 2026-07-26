@@ -74,6 +74,33 @@
                         Foreground="{StaticResource SecondaryText}"
                         Text="{Binding AgeText}" />
                     </Grid>
+                    <ItemsControl Margin="0,6,0,0" ItemsSource="{Binding Archetypes}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border
+                            Width="28"
+                            Height="28"
+                            Margin="0,0,6,0"
+                            Background="{Binding Converter={StaticResource RoleToBrush}, ConverterParameter=Tint}"
+                            BorderBrush="{Binding Converter={StaticResource RoleToBrush}}"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            ToolTip="{Binding}">
+                            <Image
+                              Width="22"
+                              Height="22"
+                              RenderOptions.BitmapScalingMode="HighQuality"
+                              Source="{Binding Converter={StaticResource RoleToImage}}"
+                              Stretch="Uniform" />
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <TextBlock
                       Margin="0,4,0,0"
                       Text="{Binding PlayersText}"
@@ -118,10 +145,22 @@
                     </Grid.ColumnDefinitions>
                     <Border
                       Grid.Column="0"
-                      Width="4"
-                      Margin="0,2,10,2"
-                      Background="{Binding CharacterRole, Converter={StaticResource RoleToBrush}}"
-                      CornerRadius="2" />
+                      Width="38"
+                      Height="38"
+                      Margin="0,2,12,2"
+                      VerticalAlignment="Top"
+                      Background="{Binding CharacterRole, Converter={StaticResource RoleToBrush}, ConverterParameter=Tint}"
+                      BorderBrush="{Binding CharacterRole, Converter={StaticResource RoleToBrush}}"
+                      BorderThickness="1"
+                      CornerRadius="19"
+                      ToolTip="{Binding CharacterRole}">
+                      <Image
+                        Width="30"
+                        Height="30"
+                        RenderOptions.BitmapScalingMode="HighQuality"
+                        Source="{Binding CharacterRole, Converter={StaticResource RoleToImage}}"
+                        Stretch="Uniform" />
+                    </Border>
                     <StackPanel Grid.Column="1">
                       <StackPanel Orientation="Horizontal">
                         <TextBlock

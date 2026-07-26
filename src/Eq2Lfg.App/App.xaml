@@ -13,6 +13,7 @@
       </ResourceDictionary.MergedDictionaries>
 
       <local:RoleToBrushConverter x:Key="RoleToBrush" />
+      <local:RoleToImageConverter x:Key="RoleToImage" />
       <local:KindToBrushConverter x:Key="KindToBrush" />
       <local:IndexEqualsConverter x:Key="IndexEquals" />
       <local:IndexToVisibilityConverter x:Key="IndexToVisibility" />
