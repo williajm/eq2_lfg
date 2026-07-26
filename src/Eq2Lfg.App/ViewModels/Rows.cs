@@ -120,6 +120,9 @@ public sealed partial class OpportunityRow : TimedRow
     public required string PlayersText { get; init; }
     public required string OwnText { get; init; }
 
+    /// <summary>Archetypes the cluster covers, in Tank/Healer/Dps/Support order.</summary>
+    public required IReadOnlyList<Role> Archetypes { get; init; }
+
     /// <summary>Ready-to-paste chat line inviting the players to form the group.</summary>
     public required string SuggestedMessage { get; init; }
 
@@ -158,6 +161,7 @@ public sealed partial class OpportunityRow : TimedRow
             OwnText = opportunity.OwnCandidates.Count > 0
                 ? "You could bring: " + string.Join(", ", opportunity.OwnCandidates.Select(c => c.Display))
                 : "",
+            Archetypes = opportunity.Archetypes.Order().ToList(),
             SuggestedMessage = OpportunityMessage.Compose(opportunity),
         };
     }
