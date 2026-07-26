@@ -6,6 +6,8 @@ can fill — or when enough individual LFG players are around to start a new gro
 
 See [REQUIREMENTS.md](REQUIREMENTS.md) for the full feature set.
 
+![EQ2 LFG Monitor showing a group opportunity: two players LFG with archetype badges, and a suggested own character to complete the group](docs/app.png)
+
 ## How it works
 
 - **Roster** is read from the `*_characters.ini` files in your EQ2 directory
