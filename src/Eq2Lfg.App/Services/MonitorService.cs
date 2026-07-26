@@ -229,6 +229,15 @@ public sealed class MonitorService : IDisposable
 
         if (!string.Equals(found.FilePath, activeLog?.FilePath, StringComparison.OrdinalIgnoreCase))
         {
+            // LFG chat is per-server: posts observed on the old server can't form
+            // groups with the new one, so crossing servers resets opportunity state.
+            if (activeLog is not null
+                && !string.Equals(found.Server, activeLog.Server, StringComparison.OrdinalIgnoreCase))
+            {
+                OpportunityDetector.Clear();
+                opportunityAlerts.Clear();
+            }
+
             activeLog = found;
             tailer = new LogTailer(found.FilePath);
             PublishStatus();

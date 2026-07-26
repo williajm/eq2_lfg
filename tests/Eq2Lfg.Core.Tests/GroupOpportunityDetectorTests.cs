@@ -205,6 +205,20 @@ public class GroupOpportunityDetectorTests
     }
 
     [Fact]
+    public void Clear_forgets_observed_posts()
+    {
+        var detector = new GroupOpportunityDetector();
+        detector.Observe(Post("45 fury LFG", "Vex"));
+        detector.Observe(Post("48 wizard LFG", "Dorn", 1));
+        detector.Observe(Post("52 guardian lf group", "Sella", 2));
+
+        detector.Clear();
+
+        Assert.Null(detector.Evaluate(T0.AddMinutes(5), []));
+        Assert.Empty(detector.ActivePosts(T0.AddMinutes(5)));
+    }
+
+    [Fact]
     public void Repost_by_same_advertiser_replaces_rather_than_duplicates()
     {
         var detector = new GroupOpportunityDetector();
