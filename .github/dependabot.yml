@@ -1,0 +1,19 @@
+# Keeps SHA-pinned actions and NuGet packages up to date via PRs.
+# Dependabot preserves commit-SHA pins and updates the trailing version comment.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        patterns: ["*"]
