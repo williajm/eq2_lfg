@@ -10,6 +10,12 @@ namespace Eq2Lfg.App.Services;
 /// <summary>Raises Windows toasts and a chime according to the user's alert settings.</summary>
 public sealed class AlertService(AppSettings settings)
 {
+    private static readonly Lazy<Uri?> LogoUri = new(() =>
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png");
+        return File.Exists(path) ? new Uri(path) : null;
+    });
+
     private readonly Lazy<byte[]> chimeWav = new(BuildChimeWav);
 
     public void AlertMatches(LfgPost post, IReadOnlyList<MatchResult> matches)
@@ -41,10 +47,15 @@ public sealed class AlertService(AppSettings settings)
         {
             try
             {
-                new ToastContentBuilder()
+                var builder = new ToastContentBuilder()
                     .AddText(title)
-                    .AddText(body)
-                    .Show();
+                    .AddText(body);
+                if (LogoUri.Value is { } logo)
+                {
+                    builder.AddAppLogoOverride(logo, ToastGenericAppLogoCrop.Circle);
+                }
+
+                builder.Show();
             }
             catch (Exception)
             {

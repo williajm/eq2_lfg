@@ -24,7 +24,11 @@
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <ui:TitleBar Title="EQ2 LFG Monitor" Grid.Row="0" />
+    <ui:TitleBar Title="EQ2 LFG Monitor" Grid.Row="0">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon Source="pack://application:,,,/Assets/logo.png" />
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
 
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
@@ -205,13 +209,30 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <TextBlock
-            Margin="0,40,0,0"
+          <StackPanel
+            Margin="0,32,0,0"
             HorizontalAlignment="Center"
-            FontSize="14"
-            Foreground="{StaticResource SecondaryText}"
-            Text="No matches yet — watching for groups that need you."
-            Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibility}}" />
+            Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibility}}">
+            <Image
+              MaxWidth="400"
+              Opacity="0.9"
+              RenderOptions.BitmapScalingMode="HighQuality"
+              Source="pack://application:,,,/Assets/empty-camp.png"
+              Stretch="Uniform">
+              <Image.OpacityMask>
+                <RadialGradientBrush>
+                  <GradientStop Offset="0.55" Color="White" />
+                  <GradientStop Offset="0.95" Color="Transparent" />
+                </RadialGradientBrush>
+              </Image.OpacityMask>
+            </Image>
+            <TextBlock
+              Margin="0,4,0,0"
+              HorizontalAlignment="Center"
+              FontSize="14"
+              Foreground="{StaticResource SecondaryText}"
+              Text="No matches yet — watching for groups that need you." />
+          </StackPanel>
         </StackPanel>
       </ScrollViewer>
 
@@ -270,13 +291,30 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <TextBlock
-            Margin="0,40,0,0"
+          <StackPanel
+            Margin="0,32,0,0"
             HorizontalAlignment="Center"
-            FontSize="14"
-            Foreground="{StaticResource SecondaryText}"
-            Text="No LFG traffic seen yet."
-            Visibility="{Binding HasNoTraffic, Converter={StaticResource BoolToVisibility}}" />
+            Visibility="{Binding HasNoTraffic, Converter={StaticResource BoolToVisibility}}">
+            <Image
+              MaxWidth="400"
+              Opacity="0.9"
+              RenderOptions.BitmapScalingMode="HighQuality"
+              Source="pack://application:,,,/Assets/empty-camp.png"
+              Stretch="Uniform">
+              <Image.OpacityMask>
+                <RadialGradientBrush>
+                  <GradientStop Offset="0.55" Color="White" />
+                  <GradientStop Offset="0.95" Color="Transparent" />
+                </RadialGradientBrush>
+              </Image.OpacityMask>
+            </Image>
+            <TextBlock
+              Margin="0,4,0,0"
+              HorizontalAlignment="Center"
+              FontSize="14"
+              Foreground="{StaticResource SecondaryText}"
+              Text="No LFG traffic seen yet." />
+          </StackPanel>
         </StackPanel>
       </ScrollViewer>
 
