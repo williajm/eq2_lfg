@@ -292,6 +292,79 @@ public class ParsingRefinementTests
         }
     }
 
+    [Theory]
+    [InlineData("CT LF 1")]
+    [InlineData("RoV LF2 lv 25+")]
+    [InlineData("1 slot open for CT")]
+    [InlineData("GREED Unrest last spot anyone")]
+    [InlineData("WC last spot 10-15ish. Anything")]
+    [InlineData("Unrest DPS or UTil 5/6 PST")]
+    [InlineData("WC 3/6 LF Heal +2")]
+    [InlineData("QUICK SS RUNS NEED DEEPS 50+ PST 4/6")]
+    [InlineData("any tanks wanna come blow shit up in Sol Eye?")]
+    [InlineData("anybody want to start Bloodline Chronicles 50+ pst")]
+    [InlineData("Forming group for Living Tombs 52+ pst")]
+    public void Slots_seat_counts_and_forming_calls_are_group_ads(string text)
+    {
+        Assert.Equal(PostKind.GroupAd, Analyze(text).Kind);
+    }
+
+    [Theory]
+    [InlineData("CT LF 1", 1)]
+    [InlineData("RoV LF2 lv 25+", 2)]
+    [InlineData("1 slot open for CT", 1)]
+    [InlineData("GREED Unrest last spot anyone", 1)]
+    [InlineData("Unrest DPS or UTil 5/6 PST", 1)]
+    [InlineData("WC 3/6 LF Heal +2", 3)]
+    [InlineData("SoF lfm need tank and dps 3/6 pst", 3)]
+    public void Slot_and_seat_count_phrasings_extract_spots_left(string text, int expected)
+    {
+        Assert.Equal(expected, Analyze(text).SpotsLeft);
+    }
+
+    [Theory]
+    [InlineData("any XP grps going on for 35+?")]
+    [InlineData("any RE/CT xp groups going?")]
+    public void Asking_whether_groups_are_going_is_a_player_post(string text)
+    {
+        Assert.Equal(PostKind.PlayerLfg, Analyze(text).Kind);
+    }
+
+    [Fact]
+    public void Lf_with_multi_digit_level_stays_a_player_post()
+    {
+        Assert.Equal(PostKind.PlayerLfg, Analyze("50 zerk lf 50+ group").Kind);
+    }
+
+    [Fact]
+    public void Deeps_and_util_extract_dps_and_support_roles()
+    {
+        var post = Analyze("Unrest DPS or UTil 5/6 PST");
+
+        Assert.Contains(Role.Dps, post.WantedRoles);
+        Assert.Contains(Role.Support, post.WantedRoles);
+        Assert.Equal("The Estate of Unrest", post.ZoneName);
+    }
+
+    [Fact]
+    public void Bare_heal_extracts_healer_role()
+    {
+        var post = Analyze("WC 3/6 LF Heal +2");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Contains(Role.Healer, post.WantedRoles);
+        Assert.Equal("Wailing Caves", post.ZoneName);
+    }
+
+    [Fact]
+    public void Expansion_shorthand_resolves_when_no_real_zone_is_named()
+    {
+        Assert.Equal("Echoes of Faydwer (any)", Analyze("70 nec lfg EOF").ZoneName);
+        // A real zone in the same message wins over the expansion catch-all.
+        Assert.Equal(
+            "The Estate of Unrest", Analyze("70 conji lfg eof/unrest/sof").ZoneName);
+    }
+
     [Fact]
     public void Install_locator_validates_directories()
     {

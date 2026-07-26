@@ -156,7 +156,7 @@ public sealed class ZoneTable
         new() { Name = "Fallen Gate", MinLevel = 20, MaxLevel = 30, Abbreviations = ["FG"] },
         new() { Name = "Ruins of Varsoon", MinLevel = 25, MaxLevel = 35, Abbreviations = ["RoV", "Varsoon"] },
         new() { Name = "Nektropos Castle", MinLevel = 30, MaxLevel = 40, Abbreviations = ["Nek Castle", "NC", "Nekcastle"] },
-        new() { Name = "Runnyeye", MinLevel = 30, MaxLevel = 40, Abbreviations = ["RE", "Runny"] },
+        new() { Name = "Runnyeye", MinLevel = 30, MaxLevel = 40, Abbreviations = ["RE", "Runny", "Runneye"] },
         new() { Name = "Deathfist Citadel", MinLevel = 35, MaxLevel = 45, Abbreviations = ["DFC", "Deathfist"] },
         new() { Name = "Crushbone Keep", MinLevel = 25, MaxLevel = 35, Abbreviations = ["CK", "Crushbone"] },
         new() { Name = "Kaladim", MinLevel = 40, MaxLevel = 50, Abbreviations = ["Kal"] },
@@ -171,7 +171,7 @@ public sealed class ZoneTable
         new() { Name = "Palace of the Awakened", MinLevel = 65, MaxLevel = 70, Abbreviations = ["PoA", "Palace"] },
         new() { Name = "Halls of Fate", MinLevel = 65, MaxLevel = 70, Abbreviations = ["HoF"] },
         new() { Name = "Mistmoore Catacombs", MinLevel = 55, MaxLevel = 65, Abbreviations = ["MMC", "Catacombs", "Cata"] },
-        new() { Name = "Castle Mistmoore", MinLevel = 60, MaxLevel = 70, Abbreviations = ["CMM", "Mistmoore", "Mistmoor"] },
+        new() { Name = "Castle Mistmoore", MinLevel = 60, MaxLevel = 70, Abbreviations = ["CMM", "Mistmoore", "Mistmoor", "MM"] },
         new() { Name = "The Estate of Unrest", MinLevel = 65, MaxLevel = 70, Abbreviations = ["Unrest"] },
         new() { Name = "Shard of Fear", MinLevel = 65, MaxLevel = 70, Abbreviations = ["SoF"] },
         new() { Name = "Crypt of Valdoon", MinLevel = 65, MaxLevel = 70, Abbreviations = ["Valdoon", "CoV"] },
@@ -179,8 +179,14 @@ public sealed class ZoneTable
         new() { Name = "Obelisk of Blight", MinLevel = 60, MaxLevel = 70, Abbreviations = ["OoB", "Blight"] },
         new() { Name = "Wailing Caves", MinLevel = 10, MaxLevel = 20, Abbreviations = ["WC"] },
         new() { Name = "Pillars of Flame", MinLevel = 50, MaxLevel = 60, Abbreviations = ["PoF"] },
+        new() { Name = "Sinking Sands", MinLevel = 45, MaxLevel = 55, Abbreviations = ["SS"] },
+        new() { Name = "The Living Tombs", MinLevel = 50, MaxLevel = 60, Abbreviations = ["LT", "Living Tombs"] },
+        new() { Name = "Bloodline Chronicles", MinLevel = 45, MaxLevel = 55, Abbreviations = ["Bloodline"] },
         // "Mayong" is the raid's boss (Mayong Mistmoore), used as shorthand for the zone.
         new() { Name = "Mistmoore's Inner Sanctum", MinLevel = 70, MaxLevel = 70, Abbreviations = ["MMIS", "Mayong"] },
         new() { Name = "Freethinker Hideout", MinLevel = 70, MaxLevel = 70, Abbreviations = ["FTH", "Freethinker"] },
+        // Catch-all for "70 nec lfg EoF" — the expansion named as a stand-in for any
+        // of its dungeons. Kept last so a real zone in the same message wins.
+        new() { Name = "Echoes of Faydwer (any)", MinLevel = 65, MaxLevel = 70, Abbreviations = ["EoF"] },
     ];
 }
