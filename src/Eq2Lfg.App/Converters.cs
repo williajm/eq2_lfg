@@ -45,7 +45,7 @@ public sealed class RoleToBrushConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 
-    private static Brush Freeze(Color color, byte alpha = 0xFF)
+    private static SolidColorBrush Freeze(Color color, byte alpha = 0xFF)
     {
         var brush = new SolidColorBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
         brush.Freeze();
