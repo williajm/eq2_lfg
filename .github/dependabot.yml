@@ -1,11 +1,14 @@
-# Keeps SHA-pinned actions and NuGet packages up to date via PRs.
-# Dependabot preserves commit-SHA pins and updates the trailing version comment.
+# Security-only mode: open-pull-requests-limit: 0 disables routine version-update
+# PRs while keeping this config as the grouping/settings source. Dependabot still
+# opens PRs automatically for SECURITY advisories (enabled in repo settings),
+# which is the only time we want it to act.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     groups:
       actions:
         patterns: ["*"]
@@ -14,6 +17,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     groups:
       nuget:
         patterns: ["*"]
