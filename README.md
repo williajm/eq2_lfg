@@ -26,15 +26,45 @@ See [REQUIREMENTS.md](REQUIREMENTS.md) for the full feature set.
 - Alerts: in-app list, Windows toast, and/or a chime — all optional, with a
   per-advertiser cooldown to tame repeat spam.
 
-## Building
+## Installing
+
+There are no packaged releases yet, so build from source — it's one command:
+
+1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+   (Windows 10 1809+ or Windows 11).
+2. Clone and publish:
+
+   ```
+   git clone https://github.com/williajm/eq2_lfg.git
+   cd eq2_lfg
+   dotnet publish src/Eq2Lfg.App -c Release -o publish
+   ```
+
+3. Run `publish\Eq2Lfg.App.exe`. Closing the window minimizes to the tray;
+   use Exit on the tray icon's menu to quit.
+4. Optional: to start it with Windows, put a shortcut to the exe in the folder
+   that opens when you run `shell:startup`.
+
+## First-run setup
+
+1. **Turn on chat logging in EQ2**: type `/log` in game. Without it the game
+   never writes the chat log this app tails.
+2. **EQ2 directory**: auto-detected on first launch. If detection fails, open
+   Settings → EQ2 directory and click Detect or paste the install path.
+3. **Characters**: Settings → Available characters lists every character found
+   across your accounts. Untick any account, server, or character you don't
+   want matched.
+4. **Alerts**: pick your mix of Windows toasts, chime, and in-app highlights.
+5. **Optional — Census service ID**: with many characters, register a free
+   service ID at census.daybreakgames.com and set it in Settings to lift the
+   anonymous API rate limit (see below).
+
+## Building for development
 
 ```
 dotnet build Eq2Lfg.sln
 dotnet test tests/Eq2Lfg.Core.Tests
 ```
-
-Run `src/Eq2Lfg.App/bin/.../Eq2Lfg.App.exe`. Closing the window minimizes to the
-tray; Exit from the tray menu to quit.
 
 ## Quality gates
 
