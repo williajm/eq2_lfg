@@ -28,22 +28,57 @@ See [REQUIREMENTS.md](REQUIREMENTS.md) for the full feature set.
 
 ## Installing
 
-There are no packaged releases yet, so build from source — it's one command:
+**From a release** (recommended): grab a zip from the
+[Releases page](https://github.com/williajm/eq2_lfg/releases) —
+`self-contained` needs nothing installed; `framework-dependent` is smaller but
+needs the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
+Unzip anywhere and run `Eq2Lfg.App.exe` (Windows 10 1809+ or Windows 11).
+Closing the window minimizes to the tray; use Exit on the tray icon's menu to
+quit. Optional: to start it with Windows, put a shortcut to the exe in the
+folder that opens when you run `shell:startup`.
 
-1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-   (Windows 10 1809+ or Windows 11).
-2. Clone and publish:
+**From source**:
 
-   ```
-   git clone https://github.com/williajm/eq2_lfg.git
-   cd eq2_lfg
-   dotnet publish src/Eq2Lfg.App -c Release -o publish
-   ```
+```
+git clone https://github.com/williajm/eq2_lfg.git
+cd eq2_lfg
+dotnet publish src/Eq2Lfg.App -c Release -o publish
+```
 
-3. Run `publish\Eq2Lfg.App.exe`. Closing the window minimizes to the tray;
-   use Exit on the tray icon's menu to quit.
-4. Optional: to start it with Windows, put a shortcut to the exe in the folder
-   that opens when you run `shell:startup`.
+then run `publish\Eq2Lfg.App.exe` (needs the
+[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)).
+
+## Verifying a release
+
+Every release is built by the [Release workflow](.github/workflows/release.yml)
+from the pushed `v*` tag — never on a developer machine. Three ways to check
+what you downloaded, from quick to cryptographic:
+
+- **Checksum**: compare `Get-FileHash <zip>` against the release's
+  `SHA256SUMS.txt`.
+- **Provenance**: each zip has a signed [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)
+  proving GitHub Actions built it from this repo at that tag's commit:
+
+  ```
+  gh attestation verify Eq2Lfg-v1.0.0-win-x64-self-contained.zip -R williajm/eq2_lfg
+  ```
+
+- **In the app**: the status bar shows the version and short commit SHA the
+  build was made from (e.g. `v1.0.0 (abc1234)`).
+
+Versioning is derived from git tags by [MinVer](https://github.com/adamralph/minver):
+tag `v1.2.0` and the build is `1.2.0`; untagged builds show a `-alpha` height
+suffix so they can never be mistaken for a release.
+
+## Cutting a release
+
+```
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow tests, publishes both zips, writes `SHA256SUMS.txt`, attaches
+attestations, and creates the GitHub Release with generated notes.
 
 ## First-run setup
 

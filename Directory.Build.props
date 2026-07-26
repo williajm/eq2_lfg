@@ -1,0 +1,18 @@
+<Project>
+
+  <!--  Versioning: MinVer derives the assembly version from the latest v* git tag
+        (e.g. tag v1.2.0 → 1.2.0; commits after a tag get a -alpha height suffix).
+        The commit SHA is embedded in AssemblyInformationalVersion by the SDK.  -->
+  <PropertyGroup>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <!--  MinVer warns (not errors) on shallow clones and untagged repos; those are
+          expected in CI PR builds and fresh clones, and must not trip
+          TreatWarningsAsErrors. Release builds fetch full history and tags.  -->
+    <NoWarn>$(NoWarn);MINVER1001;MINVER1002;MINVER1003;MINVER1004;MINVER1005</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="6.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>
