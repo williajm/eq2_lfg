@@ -46,6 +46,7 @@ public sealed partial class MainViewModel : ObservableObject
         Monitor.TrafficSeen += OnTraffic;
         Monitor.MatchFound += OnMatch;
         Monitor.OpportunityFound += OnOpportunity;
+        Monitor.OpportunitiesReset += Opportunities.Clear;
         Monitor.StatusChanged += OnStatus;
 
         Matches.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoMatches));
@@ -137,6 +138,18 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var row in Traffic)
         {
             row.RefreshAge();
+        }
+
+        // An opportunity is only actionable while its posts are inside the LFG window;
+        // past that the players have likely moved on, so drop the card entirely.
+        var cutoff = DateTimeOffset.UtcNow
+            - TimeSpan.FromMinutes(settings.OpportunityWindowMinutes);
+        for (var i = Opportunities.Count - 1; i >= 0; i--)
+        {
+            if (Opportunities[i].Timestamp < cutoff)
+            {
+                Opportunities.RemoveAt(i);
+            }
         }
 
         foreach (var row in Opportunities)

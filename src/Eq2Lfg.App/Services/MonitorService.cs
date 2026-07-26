@@ -60,6 +60,10 @@ public sealed class MonitorService : IDisposable
     public event Action<LfgPost>? TrafficSeen;
     public event Action<LfgPost, IReadOnlyList<MatchResult>, bool>? MatchFound;
     public event Action<GroupOpportunity>? OpportunityFound;
+
+    /// <summary>Raised when opportunity state is discarded (e.g. the log switched servers).</summary>
+    public event Action? OpportunitiesReset;
+
     public event Action<MonitorStatus>? StatusChanged;
 
     public MonitorService(AppSettings settings)
@@ -236,6 +240,7 @@ public sealed class MonitorService : IDisposable
             {
                 OpportunityDetector.Clear();
                 opportunityAlerts.Clear();
+                OpportunitiesReset?.Invoke();
             }
 
             activeLog = found;

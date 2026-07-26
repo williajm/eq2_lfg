@@ -152,6 +152,8 @@ public sealed partial class OpportunityRow : TimedRow
             opportunity.Archetypes.Select(a => a.ToString().ToLowerInvariant()));
         return new OpportunityRow
         {
+            // Age the card by the cluster's freshest post, not by when the alert fired.
+            Timestamp = opportunity.Posts.Max(p => p.Message.Timestamp),
             TitleText =
                 $"Potential group — {opportunity.Posts.Count} players LFG ({range}), covers {archetypes}",
             PlayersText = string.Join("   ", opportunity.Posts.Select(p =>
