@@ -99,8 +99,8 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(\d{1,3})\s*\+?\s+mentor", RegexOptions.IgnoreCase)]
     private static partial Regex MentorLevelRegex();
 
-    // The trailing lookahead lets a level run into its class ("27guard lfg");
-    // clock times ("starting at 10pm") are not levels.
+    // The trailing lookahead lets a level run into its class ("27guard lfg")
+    // while keeping clock times ("starting at 10pm") out.
     [GeneratedRegex(@"\b(?:lvl?|level)?\s*(\d{1,3})(?![ap]m\b)(?=[a-zA-Z]|\b)", RegexOptions.IgnoreCase)]
     private static partial Regex LevelRegex();
 
