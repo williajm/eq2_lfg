@@ -409,9 +409,31 @@ public class ParsingRefinementTests
     [InlineData("PST if you need a cleared Unrest........basement  key --- SoD statue")]
     [InlineData("for a choice to play, all healers are good. if you are looking for a raid spot "
         + "you need all healers, and there are always tons of Wardens")]
+    [InlineData("pst if u need a cleared Unrest key")]
+    [InlineData("you're looking for the basement key, not the statue")]
     public void Second_person_need_and_looking_for_are_not_ads(string text)
     {
         Assert.Equal(PostKind.NotLfg, Analyze(text).Kind);
+    }
+
+    // The self-identified-player heuristic must not swallow explicit member-count
+    // asks — a leader naming their own class before "lf 2m" is still recruiting.
+    [Theory]
+    [InlineData("70 dirge lf 1 more for DT")]
+    [InlineData("70 guard lf 2m CMM")]
+    [InlineData("70 dirge looking for more pst DT")]
+    public void Own_class_before_a_member_count_ask_is_still_a_group_ad(string text)
+    {
+        Assert.Equal(PostKind.GroupAd, Analyze(text).Kind);
+    }
+
+    [Fact]
+    public void Clock_times_are_not_levels()
+    {
+        var post = Analyze("CMM group starting at 10pm need healer");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Empty(post.StatedLevels);
     }
 
     [Theory]

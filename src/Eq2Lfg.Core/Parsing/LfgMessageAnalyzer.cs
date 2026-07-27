@@ -17,10 +17,10 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     // in CT", "1 slot open", "last spot", "4/6 pst", "forming group", "seeking
     // zerker/monk", "CMM 1 spot chanter/bard", "has 1 spot for anything".
     // "seeking/looking for (a) group" is excluded — that's a player looking, not a
-    // group asking — as is second-person "you need" / "you are looking for", which
-    // addresses the reader ("PST if you need a cleared Unrest").
+    // group asking — as is second-person "you/u need" / "you are/you're looking
+    // for", which addresses the reader ("PST if you need a cleared Unrest").
     // "lf 1" allows a single digit only, so "lf 50+ group" stays a player post.
-    [GeneratedRegex(@"\b((?<!\byou\s)nee+ds?|lfm|lf\s*\d(?![\d+])\s*(?:m(?:ore)?)?|(?<!\byou\s)(?<!\byou\s+are\s)looking\s+for(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?ps?\b)|seek(?:ing|s)?\b(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?ps?\b)|gim(?:me|mie)|forming|making\s+group|starting|(?:wanna|want\s+to)\s+start|(?:room|space)\s+for|\d+\s*(?:spots?|slots?)|(?:spots?|slots?)\s+(?:in|open|left|for)|open\s+(?:spots?|slots?)|last\s+(?:spot|slot)|[0-5]\s*/\s*6)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b((?<!\b(?:you|u)\s)nee+ds?|lfm|lf\s*\d(?![\d+])\s*(?:m(?:ore)?)?|(?<!\b(?:you|u)\s)(?<!\byou\s+are\s)(?<!\byou'?re\s)looking\s+for(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?ps?\b)|seek(?:ing|s)?\b(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?ps?\b)|gim(?:me|mie)|forming|making\s+group|starting|(?:wanna|want\s+to)\s+start|(?:room|space)\s+for|\d+\s*(?:spots?|slots?)|(?:spots?|slots?)\s+(?:in|open|left|for)|open\s+(?:spots?|slots?)|last\s+(?:spot|slot)|[0-5]\s*/\s*6)\b", RegexOptions.IgnoreCase)]
     private static partial Regex GroupAdRegex();
 
     // "nest of great egg can use any pst": a group-ad verb only when the message
@@ -54,8 +54,10 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     // "70 dirge lf DT claymore update", "single lvl 70 Conj ... looking for fun
     // runs": a player naming their own level and class just before "lf"/"looking
     // for" is offering themselves — unless the message goes on to name a role or
-    // some other class it wants (see Classify).
-    [GeneratedRegex(@"^\s*(?:[\w']+\s+){0,2}?(?:lvl?\s*)?\d{1,3}\s*(?<class>[a-zA-Z']+)\s+(?:[\w']+\s+){0,3}?(?:lf\b|looking\s+for\b)", RegexOptions.IgnoreCase)]
+    // some other class it wants (see Classify). A member count after the verb
+    // ("70 guard lf 2m CMM", "70 dirge looking for more") is the group asking, so
+    // those never read as self-offers.
+    [GeneratedRegex(@"^\s*(?:[\w']+\s+){0,2}?(?:lvl?\s*)?\d{1,3}\s*(?<class>[a-zA-Z']+)\s+(?:[\w']+\s+){0,3}?(?:lf\b(?!\s*\d|\s+more\b)|looking\s+for\b(?!\s+more\b))", RegexOptions.IgnoreCase)]
     private static partial Regex SelfIdentifiedLfRegex();
 
     // "anyone need a 70 Inq?" and "Any RoV groups need a healer?" are players
@@ -97,8 +99,9 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\b(\d{1,3})\s*\+?\s+mentor", RegexOptions.IgnoreCase)]
     private static partial Regex MentorLevelRegex();
 
-    // The trailing lookahead lets a level run into its class ("27guard lfg").
-    [GeneratedRegex(@"\b(?:lvl?|level)?\s*(\d{1,3})(?=[a-zA-Z]|\b)", RegexOptions.IgnoreCase)]
+    // The trailing lookahead lets a level run into its class ("27guard lfg");
+    // clock times ("starting at 10pm") are not levels.
+    [GeneratedRegex(@"\b(?:lvl?|level)?\s*(\d{1,3})(?![ap]m\b)(?=[a-zA-Z]|\b)", RegexOptions.IgnoreCase)]
     private static partial Regex LevelRegex();
 
     [GeneratedRegex(@"\b(tanks?|mt|ot|fighters?)\b", RegexOptions.IgnoreCase)]
