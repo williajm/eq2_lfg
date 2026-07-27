@@ -16,10 +16,18 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     // "need tank", "LFM", "LF2M", "CT LF 1", "room for 3m", "space for 1", "one spot
     // in CT", "1 slot open", "last spot", "4/6 pst", "forming group", "seeking
     // zerker/monk", "CMM 1 spot chanter/bard", "has 1 spot for anything".
-    // "seeking (a) group" is excluded — that's a player looking, not a group asking.
+    // "seeking/looking for (a) group" is excluded — that's a player looking, not a
+    // group asking — as is second-person "you need" / "you are looking for", which
+    // addresses the reader ("PST if you need a cleared Unrest").
     // "lf 1" allows a single digit only, so "lf 50+ group" stays a player post.
-    [GeneratedRegex(@"\b(need|needs|neeed|lfm|lf\s*\d(?![\d+])\s*(?:m(?:ore)?)?|looking\s+for|seek(?:ing|s)?\b(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b)|forming|making\s+group|starting|(?:wanna|want\s+to)\s+start|(?:room|space)\s+for|\d+\s*(?:spots?|slots?)|(?:spots?|slots?)\s+(?:in|open|left|for)|open\s+(?:spots?|slots?)|last\s+(?:spot|slot)|[0-5]\s*/\s*6)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b((?<!\byou\s)nee+ds?|lfm|lf\s*\d(?![\d+])\s*(?:m(?:ore)?)?|(?<!\byou\s)(?<!\byou\s+are\s)looking\s+for(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?ps?\b)|seek(?:ing|s)?\b(?!\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?ps?\b)|gim(?:me|mie)|forming|making\s+group|starting|(?:wanna|want\s+to)\s+start|(?:room|space)\s+for|\d+\s*(?:spots?|slots?)|(?:spots?|slots?)\s+(?:in|open|left|for)|open\s+(?:spots?|slots?)|last\s+(?:spot|slot)|[0-5]\s*/\s*6)\b", RegexOptions.IgnoreCase)]
     private static partial Regex GroupAdRegex();
+
+    // "nest of great egg can use any pst": a group-ad verb only when the message
+    // also names a zone (see Classify) — "berz can use anything but wands" is item
+    // chatter, and "you/I can use" addresses a person, not a group's needs.
+    [GeneratedRegex(@"(?<!\byou\s)(?<!\bu\s)(?<!\bi\s)\b(?:can|could)\s+use\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CanUseRegex();
 
     // Bare "LF <role/class>" ("LF healer and tank MMC", "Klak LF chanter/bard") —
     // a group ad when combined with a role or class mention.
@@ -38,8 +46,17 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     private static partial Regex ExpGroupRegex();
 
     // "groups going" covers players asking around: "any RE/CT xp groups going?".
-    [GeneratedRegex(@"\blfg\b|\blf\b.*\bgr(?:ou)?p\b|\blfw\b|\bseek(?:ing|s)?\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?p\b|\bgr(?:ou)?ps?\s+going\b", RegexOptions.IgnoreCase)]
+    // "looking for (xp) group" mirrors the seek-group exclusion in GroupAdRegex:
+    // "61 inq looking for group" offers a player, "CMM group looking for more" asks.
+    [GeneratedRegex(@"\blfg\b|\blf\b.*\bgr(?:ou)?p\b|\blfw\b|\b(?:seek(?:ing|s)?|looking\s+for)\s+(?:an?\s+)?(?:exp\s+|xp\s+)?gr(?:ou)?ps?\b|\bgr(?:ou)?ps?\s+going\b", RegexOptions.IgnoreCase)]
     private static partial Regex PlayerLfgRegex();
+
+    // "70 dirge lf DT claymore update", "single lvl 70 Conj ... looking for fun
+    // runs": a player naming their own level and class just before "lf"/"looking
+    // for" is offering themselves — unless the message goes on to name a role or
+    // some other class it wants (see Classify).
+    [GeneratedRegex(@"^\s*(?:[\w']+\s+){0,2}?(?:lvl?\s*)?\d{1,3}\s*(?<class>[a-zA-Z']+)\s+(?:[\w']+\s+){0,3}?(?:lf\b|looking\s+for\b)", RegexOptions.IgnoreCase)]
+    private static partial Regex SelfIdentifiedLfRegex();
 
     // "anyone need a 70 Inq?" and "Any RoV groups need a healer?" are players
     // offering themselves, despite the word "need". Zone names between "any" and
@@ -52,8 +69,13 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     // "Velocity is lookin for Dirge/Healers ... for raiding ... accept all casuals".
     // Deliberately narrow — a mere mention of "guild" must not disqualify a genuine
     // group ad like "guild group needs healer for CMM".
-    [GeneratedRegex(@"^\s*<[^>]+>|\b(?:recruit\w*|raiders|raiding|casuals?|full\s*time|apply|looking\s+for\s+(?:more\s+)?members|level\s+\d+\s+guild)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\s*<[^>]+>|\b(?:recruit\w*|raiders|raiding|raid\s+(?:team|force)|casuals?|full\s*time|apply|looking\s+for\s+(?:more\s+)?members|level\s+\d+\s+guild)\b", RegexOptions.IgnoreCase)]
     private static partial Regex RecruitmentRegex();
+
+    // "LF Alchemist to make 60s pally skills": a tradeskill request — any adventure
+    // class it names is the spells' owner, not someone a group wants.
+    [GeneratedRegex(@"\b(?:alchemist|sage|jeweler|jeweller|provisioner|carpenter|woodworker|armou?rer|weaponsmith|tailor|tinkerer|transmuter)s?\b", RegexOptions.IgnoreCase)]
+    private static partial Regex TradeskillRegex();
 
     // "have tank", "already got healer": roles/classes the group HAS, not ones it
     // wants. "has 1 spot for healer" offers a place, though — that clause stays.
@@ -70,7 +92,13 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     [GeneratedRegex(@"\bmentor\w*(?:\s+(?:down\s+)?(?:to\s+)?(\d{1,3})\s*\+?)?", RegexOptions.IgnoreCase)]
     private static partial Regex MentorRegex();
 
-    [GeneratedRegex(@"\b(?:lvl?|level)?\s*(\d{1,3})\b", RegexOptions.IgnoreCase)]
+    // "got 70 mentoring tank": a number before "mentor" is the mentor's own level,
+    // not a level the group is asking for.
+    [GeneratedRegex(@"\b(\d{1,3})\s*\+?\s+mentor", RegexOptions.IgnoreCase)]
+    private static partial Regex MentorLevelRegex();
+
+    // The trailing lookahead lets a level run into its class ("27guard lfg").
+    [GeneratedRegex(@"\b(?:lvl?|level)?\s*(\d{1,3})(?=[a-zA-Z]|\b)", RegexOptions.IgnoreCase)]
     private static partial Regex LevelRegex();
 
     [GeneratedRegex(@"\b(tanks?|mt|ot|fighters?)\b", RegexOptions.IgnoreCase)]
@@ -106,6 +134,11 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
             return new LfgPost { Kind = PostKind.Recruitment, Message = message };
         }
 
+        if (TradeskillRegex().IsMatch(text))
+        {
+            return new LfgPost { Kind = PostKind.NotLfg, Message = message };
+        }
+
         // Roles/classes after "have"/"got" are what the group already has — drop
         // those clauses before working out what is wanted. Zone lookup still uses
         // the full text ("have tank for CMM" names the zone either way).
@@ -117,10 +150,14 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         var mentorFloor = mentorMatch.Success && mentorMatch.Groups[1].Success
             ? int.Parse(mentorMatch.Groups[1].Value)
             : (int?)null;
-        var statedLevels = ExtractLevels(text, exceptValue: mentorFloor);
+        var mentorLevelMatch = MentorLevelRegex().Match(text);
+        var mentorLevel = mentorLevelMatch.Success
+            ? int.Parse(mentorLevelMatch.Groups[1].Value)
+            : (int?)null;
+        var statedLevels = ExtractLevels(text, mentorFloor, mentorLevel);
 
         var isExpGroup = ExpGroupRegex().IsMatch(text);
-        var kind = Classify(text, roles, classes, IsAnyForAd(text), isExpGroup);
+        var kind = Classify(text, roles, classes, IsAnyForAd(text), isExpGroup, zone is not null);
 
         // A "group ad" that names no role, class, or zone is noise ("looking for my
         // corpse") — unless it's an exp group, which is worth surfacing on its own.
@@ -171,12 +208,18 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
     // "mystic,fury,wiz LFG" or "52 warlock LFG": the speaker is offering, not recruiting.
     // "need tank cmm" wins over "lf" phrasing when both appear ("need 2 more, we're LFG" is a group).
     private static PostKind Classify(
-        string text, List<Role> roles, List<string> classes, bool isAnyForAd, bool isExpGroup)
+        string text, List<Role> roles, List<string> classes, bool isAnyForAd, bool isExpGroup,
+        bool hasZone)
     {
         var wantsSomeone = roles.Count > 0 || classes.Count > 0;
-        var looksLikePlayerLfg = PlayerLfgRegex().IsMatch(text) || SelfOfferRegex().IsMatch(text);
+        var selfIdentified = IsSelfIdentifiedLf(text, roles, classes);
+        var looksLikePlayerLfg = PlayerLfgRegex().IsMatch(text)
+            || SelfOfferRegex().IsMatch(text)
+            || selfIdentified;
         var looksLikeGroupAd = !SelfOfferRegex().IsMatch(text)
+            && !selfIdentified
             && (GroupAdRegex().IsMatch(text)
+                || (CanUseRegex().IsMatch(text) && hasZone)
                 || (!looksLikePlayerLfg
                     && BareLfRegex().IsMatch(text)
                     && (wantsSomeone || isExpGroup))
@@ -188,6 +231,28 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         }
 
         return looksLikePlayerLfg ? PostKind.PlayerLfg : PostKind.NotLfg;
+    }
+
+    // "70 dirge lf DT claymore update" offers the dirge; "70 dirge lf healer for
+    // DT" still recruits, so any wanted role or class beyond the speaker's own
+    // disqualifies.
+    private static bool IsSelfIdentifiedLf(string text, List<Role> roles, List<string> classes)
+    {
+        if (roles.Count > 0)
+        {
+            return false;
+        }
+
+        var match = SelfIdentifiedLfRegex().Match(text);
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        var token = match.Groups["class"].Value;
+        var own = ClassCatalog.ResolveClass(token)
+            ?? (token.Length > 3 && token.EndsWith('s') ? ClassCatalog.ResolveClass(token[..^1]) : null);
+        return own is not null && classes.All(c => c == own);
     }
 
     private static List<Role> ExtractRoles(string text)
@@ -285,15 +350,15 @@ public sealed partial class LfgMessageAnalyzer(ZoneTable zoneTable)
         return value is >= 1 and <= 5 ? value : null;
     }
 
-    private static List<int> ExtractLevels(string text, int? exceptValue = null)
+    private static List<int> ExtractLevels(string text, params int?[] exceptValues)
     {
         var levels = new List<int>();
         foreach (Match m in LevelRegex().Matches(text))
         {
             var value = int.Parse(m.Groups[1].Value);
             // Group sizes ("need 2 dps") are small; plausible levels are 10-130.
-            // A mentor floor ("mentor 40+") is a limit, not a character level.
-            if (value is >= 10 and <= 130 && value != exceptValue && !levels.Contains(value))
+            // A mentor's own level or floor ("mentor 40+") is not a character level.
+            if (value is >= 10 and <= 130 && !exceptValues.Contains(value) && !levels.Contains(value))
             {
                 levels.Add(value);
             }

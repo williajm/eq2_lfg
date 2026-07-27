@@ -153,6 +153,7 @@ public sealed class ZoneTable
     private static List<ZoneEntry> SeedEntries() =>
     [
         new() { Name = "Stormhold", MinLevel = 15, MaxLevel = 30, Abbreviations = ["SH"] },
+        new() { Name = "Thundering Steppes", MinLevel = 20, MaxLevel = 35, Abbreviations = ["TS"] },
         new() { Name = "Fallen Gate", MinLevel = 20, MaxLevel = 30, Abbreviations = ["FG"] },
         new() { Name = "Ruins of Varsoon", MinLevel = 25, MaxLevel = 35, Abbreviations = ["RoV", "Varsoon"] },
         new() { Name = "Nektropos Castle", MinLevel = 30, MaxLevel = 40, Abbreviations = ["Nek Castle", "NC", "Nekcastle"] },
