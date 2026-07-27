@@ -365,6 +365,148 @@ public class ParsingRefinementTests
             "The Estate of Unrest", Analyze("70 conji lfg eof/unrest/sof").ZoneName);
     }
 
+    [Theory]
+    [InlineData("nest of great egg can use any pst")]
+    [InlineData("could use a healer and 1 more dps for CMM")]
+    public void Zone_that_can_use_someone_is_a_group_ad(string text)
+    {
+        Assert.Equal(PostKind.GroupAd, Analyze(text).Kind);
+    }
+
+    [Theory]
+    [InlineData("berz can use, i think, anything but wands?")]
+    [InlineData("you can use the CMM portal at 60")]
+    [InlineData("anyone have an empty halls of fate I could use please?")]
+    public void Can_use_chatter_is_not_an_ad(string text)
+    {
+        Assert.Equal(PostKind.NotLfg, Analyze(text).Kind);
+    }
+
+    [Theory]
+    [InlineData("61 inq looking for group.", "Inquisitor")]
+    [InlineData("50 warlock looking for xp group got pot on so will log in when ready", "Warlock")]
+    [InlineData("70 dirge lf DT claymore update pst", "Dirge")]
+    [InlineData("single lvl 70 Conj in your area looking for fun runs", "Conjuror")]
+    public void Player_naming_own_class_before_lf_is_a_player_post(string text, string cls)
+    {
+        var post = Analyze(text);
+
+        Assert.Equal(PostKind.PlayerLfg, post.Kind);
+        Assert.Contains(cls, post.Classes);
+    }
+
+    [Theory]
+    [InlineData("CMM group looking for more. Tank/heals/dps/util - pst!")]
+    [InlineData("SoF looking for DPS utility 2 spots pst.")]
+    [InlineData("FG group LF dps/utility pst!")]
+    [InlineData("looking for tank and 3 dps cmm")]
+    public void Group_looking_for_someone_is_still_a_group_ad(string text)
+    {
+        Assert.Equal(PostKind.GroupAd, Analyze(text).Kind);
+    }
+
+    [Theory]
+    [InlineData("PST if you need a cleared Unrest........basement  key --- SoD statue")]
+    [InlineData("for a choice to play, all healers are good. if you are looking for a raid spot "
+        + "you need all healers, and there are always tons of Wardens")]
+    [InlineData("pst if u need a cleared Unrest key")]
+    [InlineData("you're looking for the basement key, not the statue")]
+    public void Second_person_need_and_looking_for_are_not_ads(string text)
+    {
+        Assert.Equal(PostKind.NotLfg, Analyze(text).Kind);
+    }
+
+    // The self-identified-player heuristic must not swallow explicit member-count
+    // asks — a leader naming their own class before "lf 2m" is still recruiting.
+    [Theory]
+    [InlineData("70 dirge lf 1 more for DT")]
+    [InlineData("70 guard lf 2m CMM")]
+    [InlineData("70 dirge looking for more pst DT")]
+    public void Own_class_before_a_member_count_ask_is_still_a_group_ad(string text)
+    {
+        Assert.Equal(PostKind.GroupAd, Analyze(text).Kind);
+    }
+
+    [Fact]
+    public void Clock_times_are_not_levels()
+    {
+        var post = Analyze("CMM group starting at 10pm need healer");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Empty(post.StatedLevels);
+    }
+
+    [Theory]
+    [InlineData("LF Alchemist to make 60s pally skills")]
+    [InlineData("Any alchemists lf to craft 60+pally spells")]
+    [InlineData("lf alchemist to make bruiser spells , pst")]
+    public void Tradeskill_requests_are_not_ads(string text)
+    {
+        Assert.Equal(PostKind.NotLfg, Analyze(text).Kind);
+    }
+
+    [Fact]
+    public void Raid_team_callout_is_recruitment()
+    {
+        const string bmp = "BMP raid team looking for a Coercer.. raid days and times are "
+            + "Friday 9pm - 11pm EST and Sunday 8pm - 11pm EST ... PST/DM Vnorg";
+        Assert.Equal(PostKind.Recruitment, Analyze(bmp).Kind);
+    }
+
+    [Theory]
+    [InlineData("70 troob lfg", "Troubador")]
+    [InlineData("conju 70 lfg", "Conjuror")]
+    [InlineData("33 coe lfg", "Coercer")]
+    public void Newly_observed_class_shorthand_resolves(string text, string cls)
+    {
+        var post = Analyze(text);
+
+        Assert.Equal(PostKind.PlayerLfg, post.Kind);
+        Assert.Contains(cls, post.Classes);
+    }
+
+    [Fact]
+    public void Level_glued_to_class_still_extracts()
+    {
+        var post = Analyze("27guard lfg");
+
+        Assert.Equal(PostKind.PlayerLfg, post.Kind);
+        Assert.Contains("Guardian", post.Classes);
+        Assert.Equal(27, post.StatedLevel);
+    }
+
+    [Fact]
+    public void Mentoring_members_level_is_not_a_level_requirement()
+    {
+        var post = Analyze("RoV LFM got 70 mentoring tank");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.True(post.WillMentor);
+        Assert.Empty(post.StatedLevels);
+        // "got ... tank" is what the group has, not what it wants.
+        Assert.Empty(post.WantedRoles);
+    }
+
+    [Fact]
+    public void Gimme_a_role_is_a_group_ad()
+    {
+        var post = Analyze("gimme a TANK for CM + AT PoF run! Who knows? Maybe you'll even "
+            + "have the honor of rolling on the mythical mount!");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Contains(Role.Tank, post.WantedRoles);
+    }
+
+    [Fact]
+    public void Thundering_steppes_is_a_known_zone()
+    {
+        var post = Analyze("LFM TS skellies, PST - tank + heals + any other (3 spots)");
+
+        Assert.Equal(PostKind.GroupAd, post.Kind);
+        Assert.Equal("Thundering Steppes", post.ZoneName);
+        Assert.Equal(3, post.SpotsLeft);
+    }
+
     [Fact]
     public void Install_locator_validates_directories()
     {
