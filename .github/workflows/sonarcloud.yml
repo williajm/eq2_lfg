@@ -68,6 +68,11 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
+          # Stop at the first failing command: the runner only checks the last
+          # exit code, so a failed `begin` (e.g. a rejected token) would
+          # otherwise build and test anyway and surface as a misleading
+          # "SonarQubeAnalysisConfig.xml could not be found" from `end`.
+          $PSNativeCommandUseErrorActionPreference = $true
           dotnet-sonarscanner begin /k:"williajm_eq2_lfg" /o:"williajm" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="**/*.ico,**/*.png" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" /d:sonar.coverage.exclusions="src/Eq2Lfg.App/**" /d:sonar.qualitygate.wait=true
           dotnet build Eq2Lfg.sln --configuration Release
           dotnet test tests/Eq2Lfg.Core.Tests --configuration Release --no-build --collect:"XPlat Code Coverage;Format=opencover"
